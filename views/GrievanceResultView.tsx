@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Scale, ArrowRight, ArrowLeft, ShieldAlert, CheckCircle2, Globe, ExternalLink, AlertCircle, FileText, Landmark, Clock, BookOpen, Download, Copy, Printer, Check } from 'lucide-react'
+import { Scale, ArrowRight, ArrowLeft, ShieldAlert, CheckCircle2, Globe, ExternalLink, AlertCircle, FileText, Landmark, Clock, BookOpen, Download, Copy, Printer, Check, RefreshCw, Activity } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import useCaseStore from '@/store/caseStore'
 import DraftViewer from '@/components/dashboard/DraftViewer'
@@ -24,18 +24,21 @@ const buildOptimalTweet = (dept: string, city: string, problem: string): string 
   const prefix = `🚨 ${handles} Urgent civic issue ${locationTag}: `;
   const suffix = `\n\nNeeds immediate resolution! #CitizenRights #Grievance @CPGRAMS`;
 
-  // Twitter standard limit is 280 characters
-  const maxAllowedProblemLength = 280 - prefix.length - suffix.length;
+  const totalBudget = 280;
+  const fixedLength = prefix.length + suffix.length;
+  const availableLength = totalBudget - fixedLength;
+
   let cleanProblem = (problem || '').trim().replace(/\s+/g, ' ');
 
-  if (cleanProblem.length > maxAllowedProblemLength) {
-    // Truncate at word boundary to avoid breaking words
-    const slice = cleanProblem.slice(0, maxAllowedProblemLength - 3);
-    const lastSpace = slice.lastIndexOf(' ');
-    cleanProblem = (lastSpace > 0 ? slice.slice(0, lastSpace) : slice) + '...';
+  if (cleanProblem.length <= availableLength) {
+    return `${prefix}${cleanProblem}${suffix}`;
   }
 
-  return `${prefix}${cleanProblem}${suffix}`;
+  const truncated = cleanProblem.substring(0, availableLength);
+  const lastSpace = truncated.lastIndexOf(' ');
+  const finalProblem = lastSpace > 0 ? truncated.substring(0, lastSpace) : truncated;
+
+  return `${prefix}${finalProblem}${suffix}`;
 }
 
 export default function GrievanceResultView() {
