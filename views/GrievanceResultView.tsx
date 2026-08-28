@@ -27,14 +27,11 @@ export default function GrievanceResultView() {
   const applicantName = formData?.applicant_name || "Applicant"
   const applicantCity = formData?.applicant_city || "Local Jurisdiction"
 
-  const handleTwitterEscalation = () => {
-    const handles = getTwitterHandle(formData?.target_department);
-    const city = applicantCity || 'my city';
-    const issue = defaultProblem.length > 100 ? defaultProblem.substring(0, 100) + '...' : defaultProblem;
-    const tweet = `🚨 ${handles} Urgent civic issue in ${city}: ${issue}\n\nNeeds immediate resolution! #CitizenRights #Grievance @CPGRAMS`;
-    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweet)}`;
-    window.open(url, '_blank');
-  };
+  const handles = getTwitterHandle(formData?.target_department);
+  const city = applicantCity || 'my city';
+  const issue = defaultProblem.length > 100 ? defaultProblem.substring(0, 100) + '...' : defaultProblem;
+  const tweetText = `🚨 ${handles} Urgent civic issue in ${city}: ${issue}\n\nNeeds immediate resolution! #CitizenRights #Grievance @CPGRAMS`;
+  const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
 
   const activeResult = grievanceResult && grievanceResult.violated_rights && grievanceResult.violated_rights.length > 0
     ? grievanceResult
@@ -296,13 +293,15 @@ ${applicantName}
                       Public visibility accelerates administrative action. Generate a pre-filled Twitter/X post tagging relevant authorities based on your grievance.
                     </p>
                   </div>
-                  <button
-                    onClick={handleTwitterEscalation}
+                  <a
+                    href={tweetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#000000] hover:bg-[#1f2937] text-white font-bold text-xs transition-colors shadow-md w-full sm:w-auto cursor-pointer tracking-tight"
                   >
                     <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.008 5.961h-1.91z"/></svg>
                     Post on X / Twitter
-                  </button>
+                  </a>
                 </div>
               </div>
 
