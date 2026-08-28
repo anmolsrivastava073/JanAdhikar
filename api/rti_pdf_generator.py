@@ -30,34 +30,35 @@ def sanitize_for_pdf(text: str) -> str:
     text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
     text = re.sub(r'\*(.*?)\*', r'\1', text)
     text = re.sub(r'#{1,6}\s?', '', text)
-    return text
+    return text.encode('latin-1', 'ignore').decode('latin-1')
 
 def escape_xml(text: str) -> str:
     """Escapes characters that break ReportLab's XML Paragraph parser."""
     if not text: return ""
     return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
-def _unicode_safe_pdf(title: str, body: str) -> bytes:
-    """Generates a clean UTF-8 encoded text stream PDF fallback for any language."""
-    buffer = io.BytesIO()
-    full_content = f"========================================\n{title.upper()}\n========================================\n\n{body}\n\n[Generated via JanAdhikar Legal Engine - Official Document]"
-    buffer.write(full_content.encode('utf-8'))
-    buffer.seek(0)
-    return buffer.getvalue()
+def _simple_pdf(title: str, body: str) -> bytes:
+    content = f"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
+    content += f"3 0 obj<</Type/Page/MediaBox[0 0 595 842]/Parent 2 0 R/Resources<</Font<</F1 4 0 R>>>>/Contents 5 0 R>>endobj\n"
+    content += f"4 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\n"
+    
+    lines = [sanitize_for_pdf(title)] + [sanitize_for_pdf(l) for l in body.split('\n') if l.strip()]
+    stream_content = "BT /F1 10 Tf 50 780 Td 14 TL "
+    for line in lines[:45]:
+        safe_line = line.replace('(', '\\(').replace(')', '\\)')
+        stream_content += f"({safe_line}) ' "
+    stream_content += "ET"
+    
+    stream_len = len(stream_content.encode('latin-1', 'ignore'))
+    content += f"5 0 obj<</Length {stream_len}>>stream\n{stream_content}\nendstream\nendobj\nxref\n0 6\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000224 00000 n \n0000000293 00000 n \ntrailer<</Size 6/Root 1 0 R>>\nstartxref\n{len(content.encode('latin-1', 'ignore'))}\n%%EOF"
+    return content.encode('latin-1', 'ignore')
 
 def generate_rti_pdf(applicant_details: Dict[str, Any], department_info: Dict[str, Any], rti_body_text: str) -> bytes:
-    # Use unicode-safe stream for regional scripts to prevent layout/glyph corruption
-    if any(ord(char) > 127 for char in rti_body_text):
-        full_text = f"To,\nThe Public Information Officer (CPIO),\n{department_info.get('public_authority_name', 'Concerned Department')}\n\n"
-        full_text += f"Applicant Name: {applicant_details.get('name', '')}\n"
-        full_text += f"Address: {applicant_details.get('address', '')}\n"
-        full_text += f"Contact: {applicant_details.get('contact', '')}\n\n"
-        full_text += f"PARTICULARS OF INFORMATION SOUGHT:\n{rti_body_text}\n\n"
-        full_text += f"Declaration: I am a citizen of India.\nPlace: {applicant_details.get('place', '')}"
-        return _unicode_safe_pdf("FORM A — RTI APPLICATION (SECTION 6(1))", full_text)
-
     if not HAS_REPORTLAB:
-        return _unicode_safe_pdf("FORM A — RTI APPLICATION (SECTION 6(1))", rti_body_text)
+        full_text = f"Applicant: {applicant_details.get('name', 'Applicant')}\n"
+        full_text += f"Public Authority: {department_info.get('public_authority_name', 'CPIO')}\n\n"
+        full_text += rti_body_text
+        return _simple_pdf("FORM A — RTI APPLICATION (SECTION 6(1))", full_text)
 
     buffer = io.BytesIO()
     try:
@@ -68,7 +69,7 @@ def generate_rti_pdf(applicant_details: Dict[str, Any], department_info: Dict[st
         )
         styles = getSampleStyleSheet()
         title_style = ParagraphStyle('Title', parent=styles['Heading3'], alignment=TA_CENTER, spaceAfter=15)
-        normal = ParagraphStyle('Normal', parent=styles['Normal'], alignment=TA_JUSTIFY, leading=16, fontSize=11)
+        normal = ParagraphStyle('Normal', parent=styles['Normal'], alignment=TA_JUSTIFY, leading=16, fontSize=10)
         
         story = []
         story.append(Paragraph("<b>FORM A</b>", title_style))
@@ -111,15 +112,13 @@ def generate_rti_pdf(applicant_details: Dict[str, Any], department_info: Dict[st
         doc.build(story)
         buffer.seek(0)
         return buffer.getvalue()
-    except Exception:
-        return _unicode_safe_pdf("FORM A — RTI APPLICATION (SECTION 6(1))", rti_body_text)
+    except Exception as e:
+        print(f"PDF generation exception: {e}")
+        return _simple_pdf("FORM A — RTI APPLICATION (SECTION 6(1))", rti_body_text)
 
 def generate_generic_pdf(title: str, body_text: str) -> bytes:
-    if any(ord(char) > 127 for char in body_text):
-        return _unicode_safe_pdf(title, body_text)
-
     if not HAS_REPORTLAB:
-        return _unicode_safe_pdf(title, body_text)
+        return _simple_pdf(title, body_text)
 
     buffer = io.BytesIO()
     try:
@@ -130,7 +129,7 @@ def generate_generic_pdf(title: str, body_text: str) -> bytes:
         )
         styles = getSampleStyleSheet()
         title_style = ParagraphStyle('Title', parent=styles['Heading3'], alignment=TA_CENTER, spaceAfter=15)
-        normal = ParagraphStyle('Normal', parent=styles['Normal'], alignment=TA_JUSTIFY, leading=16, fontSize=11)
+        normal = ParagraphStyle('Normal', parent=styles['Normal'], alignment=TA_JUSTIFY, leading=16, fontSize=10)
 
         story = []
         clean_title = escape_xml(sanitize_for_pdf(title))
@@ -144,4 +143,4 @@ def generate_generic_pdf(title: str, body_text: str) -> bytes:
         buffer.seek(0)
         return buffer.getvalue()
     except Exception:
-        return _unicode_safe_pdf(title, body_text)
+        return _simple_pdf(title, body_text)
