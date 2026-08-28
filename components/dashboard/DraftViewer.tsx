@@ -19,6 +19,7 @@ export default function DraftViewer({ title = 'Generated Document', draft, caseI
 
   if (!draft) return null
 
+  // Strip Markdown **bold** and # headings just in case the AI leaked them
   const cleanDraftText = (displayDraft || '').replace(/\*\*(.*?)\*\*/g, '$1').replace(/#{1,6}\s?/g, '');
 
   const handleCopy = () => {
@@ -31,31 +32,38 @@ export default function DraftViewer({ title = 'Generated Document', draft, caseI
     setDownloading(true)
     try {
       let blob;
-      if (caseId && selectedLang === 'English') {
-        blob = await downloadRtiPdf(caseId)
+      let filename = `${caseId ? `Application_${caseId}` : 'Legal_Notice'}.pdf`;
+
+      if (selectedLang !== 'English') {
+        // Download as a clean UTF-8 text file for regional languages to avoid PDF viewer corruption/security origin errors
+        blob = new Blob([cleanDraftText], { type: 'text/plain;charset=utf-8' });
+        filename = `${caseId ? `Application_${caseId}` : 'Legal_Notice'}_${selectedLang}.txt`;
       } else {
-        blob = await downloadGenericPdf(`${title} (${selectedLang})`, cleanDraftText)
+        if (caseId && title.toLowerCase().includes('rti')) {
+          blob = await downloadRtiPdf(caseId);
+        } else {
+          blob = await downloadGenericPdf(title, cleanDraftText);
+        }
+        blob = new Blob([blob], { type: 'application/pdf' });
       }
       
-      const fileBlob = new Blob([blob], { type: 'application/octet-stream' })
-      const url = URL.createObjectURL(fileBlob)
-      
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `${caseId ? `Application_${caseId}_${selectedLang}` : 'Legal_Notice'}.pdf`
-      document.body.appendChild(link)
-      link.click()
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
       
       setTimeout(() => {
-        if (link.parentNode) link.parentNode.removeChild(link)
-        URL.revokeObjectURL(url)
-      }, 5000)
+        if (link.parentNode) link.parentNode.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 5000);
 
     } catch (err) {
-      console.error('Failed to download PDF:', err)
-      alert('Failed to generate PDF. Please try again.')
+      console.error('Failed to download document:', err);
+      alert('Failed to generate document file. Please try again.');
     } finally {
-      setDownloading(false)
+      setDownloading(false);
     }
   }
 
@@ -164,10 +172,10 @@ export default function DraftViewer({ title = 'Generated Document', draft, caseI
             </button>
             <button 
               onClick={handleDownloadPdf} 
-              disabled={downloading}
+              disabled={downloading} 
               className="btn-ghost flex-1 sm:flex-none text-xs py-1.5 px-3 gap-1.5 bg-white border border-slate-200 text-slate-600 hover:text-ashoka-navy hover:bg-slate-50 disabled:opacity-50"
             >
-              {downloading ? <><Loader2 size={13} className="animate-spin" /> Gen...</> : <><Download size={13} /> PDF</>}
+              {downloading ? <><Loader2 size={13} className="animate-spin" /> Gen...</> : <><Download size={13} /> {selectedLang === 'English' ? 'PDF' : 'Text File'}</>}
             </button>
             <button onClick={handlePrint} className="btn-ghost flex-1 sm:flex-none text-xs py-1.5 px-3 gap-1.5 bg-white border border-slate-200 text-slate-600 hover:text-ashoka-navy hover:bg-slate-50">
               <Printer size={13} /> Print
