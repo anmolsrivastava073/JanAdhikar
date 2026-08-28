@@ -61,7 +61,7 @@ class GrievanceResolver:
             ],
             "legal_explanation": f"Public administrative bodies in {app_city} are bound by statutory Citizen Charters.",
             "target_portal_name": "CPGRAMS",
-            "target_portal_url": "https://pgportal.gov.in",
+            "target_portal_url": "[https://pgportal.gov.in](https://pgportal.gov.in)",
             "evidence_analysis": "Based on provided facts.",
             "demand_notice_draft": f"""FORMAL GRIEVANCE PETITION\nTo: Concerned Department, {app_city}\nFrom: {app_name}\nSubject: Grievance regarding {user_problem[:60]}\n..."""
         }
@@ -78,7 +78,7 @@ class GrievanceResolver:
   "target_portal_name": "e-Daakhil / CPGRAMS",
   "target_portal_url": "https://...",
   "evidence_analysis": "What the proofs show",
-  "demand_notice_draft": "The complete legal demand notice."
+  "demand_notice_draft": "The complete legal demand notice. MUST be pure plain text ONLY. DO NOT use markdown formatting like **bold** or *italics*."
 }"""
 
                 user_content_str = f"Issue: {user_problem}\nLocation: {location}\nForm Data: {json.dumps(form_data)}"
