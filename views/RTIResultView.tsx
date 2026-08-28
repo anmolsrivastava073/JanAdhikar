@@ -132,7 +132,7 @@ export default function RTIResultView({ initialDepartment }: RTIResultViewProps)
         style={{ backgroundImage: "url('/bg.image.png')" }}
       >
         <div className="bg-white/95 backdrop-blur-sm border border-slate-300 rounded-3xl p-8 max-w-md text-center space-y-4 shadow-xl relative z-10">
-          <AlertCircle className="text-amber-500 mx-auto" size={36}/>
+          <AlertCircle className="text-amber-500 mx-auto" size={36} />
           <h2 className="text-xl font-extrabold text-ashoka-navy tracking-tight">No Draft Found</h2>
           <p className="text-xs text-slate-600 font-medium">
             We couldn't locate an active RTI draft for analysis. Please start or select an existing case.
@@ -179,7 +179,7 @@ export default function RTIResultView({ initialDepartment }: RTIResultViewProps)
             <div className="bg-white/95 backdrop-blur-sm border border-slate-300 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6 text-left">
               {loadingPred ? (
                 <div className="py-12 text-center space-y-3">
-                  <Loader2 className="animate-spin text-court-maroon mx-auto" size={32}/>
+                  <Loader2 className="animate-spin text-court-maroon mx-auto" size={32} />
                   <p className="text-sm font-medium text-slate-500">
                     Analyzing RTI exemption risks and predictability...
                   </p>
@@ -211,7 +211,7 @@ export default function RTIResultView({ initialDepartment }: RTIResultViewProps)
                             key={idx}
                             className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-medium flex items-start gap-2"
                           >
-                            <AlertTriangle className="text-amber-600 flex-shrink-0 mt-0.5" size={15}/>
+                            <AlertTriangle className="text-amber-600 flex-shrink-0 mt-0.5" size={15} />
                             <span>{typeof risk === 'string' ? risk : risk.description || risk.risk}</span>
                           </div>
                         ))}
@@ -254,7 +254,7 @@ export default function RTIResultView({ initialDepartment }: RTIResultViewProps)
                   }}
                   className="btn-ghost text-sm cursor-pointer bg-white border-slate-300 text-slate-700 hover:bg-slate-50 font-sans tracking-tight font-bold"
                 >
-                  <ArrowLeft size={16}/> Edit Applicant Form
+                  <ArrowLeft size={16} /> Edit Applicant Form
                 </button>
                 <button
                   onClick={handleImprove}
@@ -263,11 +263,11 @@ export default function RTIResultView({ initialDepartment }: RTIResultViewProps)
                 >
                   {loadingImprove ? (
                     <>
-                      <Loader2 className="animate-spin" size={18}/> Optimizing...
+                      <Loader2 className="animate-spin" size={18} /> Optimizing...
                     </>
                   ) : (
                     <>
-                      Generate Final RTI Draft <ArrowRight size={18}/>
+                      Generate Final RTI Draft <ArrowRight size={18} />
                     </>
                   )}
                 </button>
@@ -293,7 +293,7 @@ export default function RTIResultView({ initialDepartment }: RTIResultViewProps)
             </p>
 
             <div className="space-y-6">
-              <DraftViewer caseId={caseId} draft={improvedDraft || rtiDraft || ''} title="RTI Application (Section 6(1))"/>
+              <DraftViewer caseId={caseId} draft={improvedDraft || rtiDraft || ''} title="RTI Application (Section 6(1))" />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-white/95 backdrop-blur-sm border border-slate-300 rounded-2xl p-5 text-left shadow-xs flex flex-col justify-between h-full">
@@ -335,7 +335,7 @@ export default function RTIResultView({ initialDepartment }: RTIResultViewProps)
 
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3 shadow-sm text-left">
                 <div className="mt-0.5 text-amber-600 flex-shrink-0">
-                  <AlertCircle size={18}/>
+                  <AlertCircle size={18} />
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wide mb-1 font-sans">
@@ -356,7 +356,7 @@ export default function RTIResultView({ initialDepartment }: RTIResultViewProps)
                   }}
                   className="btn-ghost text-sm cursor-pointer w-full sm:w-auto justify-center bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 font-sans tracking-tight font-bold"
                 >
-                  <RefreshCw className="mr-1.5 inline" size={16}/> Start New Case
+                  <RefreshCw className="mr-1.5 inline" size={16} /> Start New Case
                 </button>
                 <button
                   onClick={() => {
@@ -367,9 +367,9 @@ export default function RTIResultView({ initialDepartment }: RTIResultViewProps)
                   }}
                   className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-ashoka-navy hover:bg-[#1E293B] text-white font-bold text-sm transition-all shadow-md cursor-pointer w-full sm:w-auto tracking-tight font-sans"
                 >
-                  <Activity className="text-emerald-400" size={16}/>
+                  <Activity className="text-emerald-400" size={16} />
                   <span>Track SLA & Appeals</span>
-                  <ArrowRight size={16}/>
+                  <ArrowRight size={16} />
                 </button>
               </div>
             </div>
