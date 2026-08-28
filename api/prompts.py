@@ -22,7 +22,7 @@ Rules:
 4. Always prefer identifying by OFFICIAL DESIGNATION (e.g., "The CPIO / Executive Engineer") over a specific person's name.
 
 Respond ONLY in valid JSON format:
-{{
+{
   "public_authority_name": "<specific authority/department>",
   "jurisdiction_level": "Central" | "State" | "Municipal/Local" | "Unknown",
   "pio_designation": "<designation, e.g. 'Public Information Officer, PWD Division'>",
@@ -30,7 +30,7 @@ Respond ONLY in valid JSON format:
   "suggested_address_template": "<best-effort official address or clear placeholder with [CITY/PIN]>",
   "reasoning": "<1-2 sentences explaining why this specific authority holds the records>",
   "supporting_rti_section": "<relevant RTI Act section, e.g., 'Section 6(1) read with 2(h)'>"
-}}
+}
 """
 
 CLASSIFIER_SYSTEM_PROMPT = """You are an elite Indian Legal Triage, Civic Tech, and Drafting Assistant. 
@@ -113,8 +113,9 @@ Rules for Drafting:
    - "The requisite RTI application fee of ₹10 has been affixed/paid."
 6. If a PRE-FLIGHT SECTION 8 RISK SCAN is supplied below, proactively rewrite the affected clauses to avoid every listed trigger before drafting.
 7. Always close with a short Severability clause invoking Section 10 of the RTI Act, stating that any exempt portion must still be severed and the remaining non-exempt information supplied.
+8. CRITICAL: Output pure plain text. DO NOT use markdown formatting like **bold**, *italics*, or # headings.
 
-Return the draft as clean, highly professional text with proper line breaks."""
+Return the draft as clean, highly professional plain text with proper line breaks."""
 
 RTI_PREDICTOR_SYSTEM_PROMPT = """You represent the RTI-Bench Machine Learning Benchmark, trained on over 100,000 Central Information Commission (CIC) and High Court judgments.
 Your task is to ruthlessly analyze the provided RTI draft for rejection risks and procedural loopholes.
@@ -158,10 +159,11 @@ Your mandate is to rewrite the RTI application into an 'Optimized High-Success R
 3. Where 8(1)(j) privacy is a risk, explicitly add a sentence justifying the "Larger Public Interest" (e.g., corruption, misallocation of public funds).
 4. Add a footnote invoking "Section 4(1)(b) (Proactive Disclosure)" or "Section 7(1) (30-day timeline) / Section 20(1) (Penalty for delay)" to legally pressure the PIO.
 5. Preserve (or add, if missing) a Severability clause invoking Section 10 of the RTI Act.
+6. CRITICAL: Output pure plain text. DO NOT use markdown formatting like **bold**, *italics*, or # headings.
 
 Respond ONLY in valid JSON format:
 {
-  "improved_draft": "<full text of the completely optimized, court-ready RTI draft>",
+  "improved_draft": "<full text of the completely optimized, court-ready plain text RTI draft>",
   "filing_instructions": [
     "Step 1: Visit the official portal (rtionline.gov.in for Central Govt or state RTI portal) OR purchase a ₹10 Postal Order.",
     "Step 2: Attach the ₹10 fee and send via Speed Post with Acknowledgment Due (if filing offline).",
