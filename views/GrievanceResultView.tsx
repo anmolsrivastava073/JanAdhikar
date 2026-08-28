@@ -21,8 +21,10 @@ const getTwitterHandle = (dept: string) => {
 const buildOptimalTweet = (dept: string, city: string, problem: string): string => {
   const handles = getTwitterHandle(dept);
   const locationTag = city ? `in ${city}` : '';
+  
+  // Avoid using # or & inside the template string to prevent URL intent truncation bugs
   const prefix = `🚨 ${handles} Urgent civic issue ${locationTag}: `;
-  const suffix = `\n\nNeeds immediate resolution! #CitizenRights #Grievance @CPGRAMS`;
+  const suffix = `\n\nNeeds immediate resolution by authorities. Please help!`;
 
   const totalBudget = 280;
   const fixedLength = prefix.length + suffix.length;
