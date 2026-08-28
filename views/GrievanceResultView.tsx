@@ -6,14 +6,35 @@ import { useRouter } from 'next/navigation'
 import useCaseStore from '@/store/caseStore'
 import DraftViewer from '@/components/dashboard/DraftViewer'
 
+const getTwitterHandle = (dept: string) => {
+  const d = (dept || '').toLowerCase();
+  if (d.includes('pwd') || d.includes('road') || d.includes('highway') || d.includes('street')) return '@MORTHIndia @nitin_gadkari';
+  if (d.includes('municipal') || d.includes('corporation') || d.includes('ward')) return '@MoHUA_India';
+  if (d.includes('police') || d.includes('fir')) return '@HMOIndia';
+  if (d.includes('consumer') || d.includes('e-commerce') || d.includes('flipkart') || d.includes('amazon')) return '@jagograhakjago @PiyushGoyal';
+  if (d.includes('pension') || d.includes('epfo') || d.includes('pf')) return '@socialepfo @LabourMinistry';
+  if (d.includes('railway') || d.includes('train')) return '@RailMinIndia @AshwiniVaishnaw';
+  if (d.includes('bank') || d.includes('sbi') || d.includes('refund')) return '@FinMinIndia @RBI';
+  return '@CPGRAMS @PMOIndia';
+}
+
 export default function GrievanceResultView() {
   const router = useRouter()
-  const { caseId, userProblem, formData, grievanceResult, setGrievanceResult, setStage } = useCaseStore()
+  const { caseId, userProblem, formData, grievanceResult, setGrievanceResult, setStage, reset } = useCaseStore()
   const [subStep, setSubStep] = useState(1)
 
   const defaultProblem = userProblem || "Unlawful withholding of security deposit / consumer deficiency of service"
   const applicantName = formData?.applicant_name || "Applicant"
   const applicantCity = formData?.applicant_city || "Local Jurisdiction"
+
+  const handleTwitterEscalation = () => {
+    const handles = getTwitterHandle(formData?.target_department);
+    const city = applicantCity || 'my city';
+    const issue = defaultProblem.length > 100 ? defaultProblem.substring(0, 100) + '...' : defaultProblem;
+    const tweet = `🚨 ${handles} Urgent civic issue in ${city}: ${issue}\n\nNeeds immediate resolution! #CitizenRights #Grievance @CPGRAMS`;
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweet)}`;
+    window.open(url, '_blank');
+  };
 
   const activeResult = grievanceResult && grievanceResult.violated_rights && grievanceResult.violated_rights.length > 0
     ? grievanceResult
@@ -126,7 +147,7 @@ ${applicantName}
                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Applicable Acts & Violated Legal Provisions</h3>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {violated_rights.map((right, idx) => (
+                  {violated_rights.map((right: string, idx: number) => (
                     <div key={idx} className="p-4 bg-rose-50/70 border border-rose-200/80 rounded-2xl flex items-start gap-3 shadow-sm">
                       <span className="w-6 h-6 rounded-full bg-court-maroon text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
                         {idx + 1}
@@ -243,29 +264,50 @@ ${applicantName}
             </div>
 
             <p className="text-blue-100 text-sm leading-relaxed text-left font-medium drop-shadow-sm">
-              Your formal legal demand notice has been drafted in compliance with <strong>Section 80 CPC</strong> and the <strong>Consumer Protection Act, 2019</strong>. You can download it as a formal PDF, copy it, or print it.
+              Your formal legal demand notice has been drafted in compliance with <strong>Section 80 CPC</strong> and the <strong>Consumer Protection Act, 2019</strong>.
             </p>
 
             <div className="space-y-6 text-left">
-              <DraftViewer
-                title="Statutory Legal Demand Notice"
-                draft={demand_notice_draft}
-                caseId={caseId}
-              />
+              <DraftViewer caseId={caseId} draft={demand_notice_draft} title="Statutory Legal Demand Notice" />
 
-              <div className="bg-white/95 backdrop-blur-sm border border-slate-300 rounded-2xl p-5 text-left space-y-2 shadow-xs">
-                <h4 className="text-xs font-bold text-ashoka-navy uppercase tracking-wider flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-court-maroon" /> Recommended Service Instructions
-                </h4>
-                <ul className="text-xs text-slate-600 space-y-1.5 pl-4 list-disc leading-relaxed font-medium">
-                  <li>Send this notice via <strong>Speed Post with Acknowledgment Due (AD)</strong> or by Registered Email to retain proof of delivery.</li>
-                  <li>Give the opposite party <strong>15 statutory calendar days</strong> to comply from the date of receipt.</li>
-                  <li>If the dispute remains unresolved after 15 days, submit the postal tracking receipt along with this notice on <strong>{target_portal_name || 'e-Daakhil'}</strong> to file your formal complaint.</li>
-                </ul>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white/95 backdrop-blur-sm border border-slate-300 rounded-2xl p-5 text-left shadow-xs flex flex-col justify-between h-full">
+                  <div>
+                    <h4 className="text-xs font-bold text-ashoka-navy uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                      <Clock className="w-4 h-4 text-court-maroon" /> Recommended Service Instructions
+                    </h4>
+                    <ul className="text-xs text-slate-600 space-y-1.5 pl-4 list-disc leading-relaxed font-medium">
+                      <li>Send this notice via <strong>Speed Post with Acknowledgment Due (AD)</strong> or Registered Email.</li>
+                      <li>Give the opposite party <strong>15 calendar days</strong> to comply from receipt.</li>
+                      <li>If unresolved, submit the postal receipt and this notice to <strong>{target_portal_name || 'e-Daakhil'}</strong>.</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="bg-sky-50 border border-sky-200 rounded-2xl p-5 text-left shadow-sm flex flex-col justify-between h-full">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="p-1.5 bg-sky-100 rounded-full">
+                        <Globe className="text-sky-600" size={16} />
+                      </div>
+                      <h4 className="text-xs font-bold text-sky-900 uppercase tracking-wide">Social Media Escalation</h4>
+                    </div>
+                    <p className="text-xs text-sky-800 leading-relaxed font-medium mb-3">
+                      Public visibility accelerates administrative action. Generate a pre-filled Twitter/X post tagging relevant authorities based on your grievance.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleTwitterEscalation}
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#000000] hover:bg-[#1f2937] text-white font-bold text-xs transition-colors shadow-md w-full sm:w-auto cursor-pointer tracking-tight"
+                  >
+                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.008 5.961h-1.91z"/></svg>
+                    Post on X / Twitter
+                  </button>
+                </div>
               </div>
 
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3 text-left shadow-sm">
-                <AlertCircle size={18} className="text-amber-600 mt-0.5 shrink-0" />
+                <AlertCircle className="text-amber-600 mt-0.5 shrink-0" size={18} />
                 <p className="text-xs text-amber-900 leading-relaxed font-medium">
                   <strong>Statutory Notice Disclaimer:</strong> This legal notice has been generated by JanAdhikar's institutional AI engine. Please verify all party names, addresses, and transaction amounts before service.
                 </p>
@@ -279,7 +321,11 @@ ${applicantName}
                   <ArrowLeft size={16} /> Back to Rights Analysis
                 </button>
                 <button
-                  onClick={() => { setStage('IDLE'); router.push('/'); }}
+                  onClick={() => { 
+                    reset(); 
+                    sessionStorage.removeItem('janadhikar_problem');
+                    router.push('/'); 
+                  }}
                   className="btn-primary text-sm py-3 px-6 cursor-pointer w-full sm:w-auto justify-center bg-[#A32A02] hover:bg-[#138808] transition-colors text-white font-bold shadow-md"
                 >
                   Start Another Case

@@ -168,4 +168,22 @@ Legal Grounds / Precedent to use: {pio_analysis.get('precedent_title', '')} - {p
         
         return f"BEFORE THE FIRST APPELLATE AUTHORITY\nUnder Section 19(1) of the RTI Act, 2005\n\nAppellant: {appellant_name}\nPublic Authority: {dept_name}\n\nGROUNDS FOR APPEAL:\n{grounds}\n\nSTATUTORY PRECEDENT:\n{precedent}\n\nPRAYER:\nDirect the PIO to provide complete information free of cost under Section 7(6) and initiate Section 20(1) penalty proceedings."
 
+    def translate_document(self, text: str, target_language: str) -> str:
+        client = self._get_client()
+        if client:
+            try:
+                sys_prompt = f"You are an expert Indian Legal Translator. Translate the following legal document into formal, official {target_language}. Maintain the exact structure, numbering, and legal terminology appropriate for Indian civic applications. Output ONLY the translated text without markdown wrappers or conversational filler."
+                response = client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": sys_prompt},
+                        {"role": "user", "content": text}
+                    ],
+                    temperature=0.1
+                )
+                return response.choices[0].message.content.strip()
+            except Exception as e:
+                print(f"[OutcomeEngine] Translation failed: {e}")
+        return text
+
 outcome_engine = OutcomeEngine()

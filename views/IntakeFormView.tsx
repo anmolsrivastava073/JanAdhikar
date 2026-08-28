@@ -228,7 +228,7 @@ export default function IntakeFormView() {
         style={{ backgroundImage: "url('/bg.image.png')" }}
       >
         <div className="bg-white/95 backdrop-blur-md p-8 rounded-3xl border border-slate-200 shadow-xl text-center space-y-3">
-          <Loader2 size={40} className="animate-spin text-[#FF9933] mx-auto" />
+          <Loader2 className="animate-spin text-[#FF9933] mx-auto" size={40} />
           <h2 className="text-xl font-extrabold text-ashoka-navy tracking-tight">Analyzing Legal Merits...</h2>
           <p className="text-slate-500 text-sm font-medium">Running F.A.C.T.S. triage, resolving jurisdiction, and computing readiness.</p>
         </div>
@@ -336,7 +336,7 @@ export default function IntakeFormView() {
               {isOther && (
                 <div className="p-6 bg-blue-50 border border-blue-200 rounded-3xl text-left shadow-sm">
                   <h4 className="text-base font-bold text-blue-900 flex items-center gap-2 mb-4 pb-2 border-b border-blue-200 tracking-tight">
-                    <Info size={20} className="text-blue-700"/> Recommended Action Plan For Your Case
+                    <Info className="text-blue-700" size={20} /> Recommended Action Plan For Your Case
                   </h4>
                   <div className="text-sm text-blue-800 leading-relaxed font-medium">
                     {formatAIText(classifyResult?.specific_advice || 'This case falls outside RTI or Consumer/Administrative grievance jurisdictions. Please consult a local legal professional or the relevant authority for this specific issue.')}
@@ -345,7 +345,14 @@ export default function IntakeFormView() {
               )}
 
               <div className="pt-6 border-t border-slate-200 flex items-center justify-between">
-                <button onClick={() => { reset(); router.push('/'); }} className="btn-ghost py-3 px-5 border border-slate-300 text-slate-700 hover:bg-slate-50 cursor-pointer font-sans tracking-tight font-bold">
+                <button 
+                  onClick={() => { 
+                    reset(); 
+                    sessionStorage.removeItem('janadhikar_problem'); 
+                    router.push('/'); 
+                  }} 
+                  className="btn-ghost py-3 px-5 border border-slate-300 text-slate-700 hover:bg-slate-50 cursor-pointer font-sans tracking-tight font-bold"
+                >
                   <ArrowLeft size={16} /> Start New Case
                 </button>
                 {!isOther && (
@@ -462,7 +469,7 @@ export default function IntakeFormView() {
           {currentStep === 2 && (
             <form onSubmit={handleNextStep} className="space-y-6 animate-in fade-in duration-300">
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl flex items-start gap-3 shadow-xs">
-                <Sparkles size={18} className="text-blue-600 mt-0.5 shrink-0" />
+                <Sparkles className="text-blue-600 mt-0.5 shrink-0" size={18} />
                 <p className="text-xs text-blue-900 font-medium leading-relaxed">
                   <strong className="text-ashoka-navy tracking-tight font-bold">AI Strategy Engine:</strong> We have automatically structured the technical legal clauses and target authority based on your problem. <br/><br/>
                   <span className="font-bold text-ashoka-navy tracking-tight">Note: All fields below are optional.</span> If you are unsure about any specifics, leave them blank—the Legal Engine will automatically handle defaults.
@@ -471,14 +478,14 @@ export default function IntakeFormView() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-[#FAF8F5] p-3 rounded-xl border border-slate-300 flex items-center gap-3">
-                  <Banknote size={16} className="text-slate-500" />
+                  <Banknote className="text-slate-500" size={16} />
                   <div>
                     <span className="block text-[10px] font-bold text-slate-500 uppercase">Statutory Fee</span>
                     <span className="text-sm font-bold text-ashoka-navy">{localForm.statutory_fee || (isRTI ? '₹10' : 'N/A')}</span>
                   </div>
                 </div>
                 <div className="bg-[#FAF8F5] p-3 rounded-xl border border-slate-300 flex items-center gap-3">
-                  <Clock size={16} className="text-slate-500" />
+                  <Clock className="text-slate-500" size={16} />
                   <div>
                     <span className="block text-[10px] font-bold text-slate-500 uppercase">Mandated Response Time</span>
                     <span className="text-sm font-bold text-ashoka-navy">{localForm.response_time || (isRTI ? '30 Days' : '15 Days')}</span>
@@ -587,17 +594,17 @@ export default function IntakeFormView() {
                 </div>
               )}
 
-              <div className="pt-6 border-t border-slate-200 flex items-center justify-between">
+              <div className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
                 <button
                   type="button"
                   onClick={() => setCurrentStep(1)}
-                  className="btn-ghost py-3 px-5 border border-slate-300 text-slate-700 hover:bg-slate-50 cursor-pointer font-sans tracking-tight font-bold"
+                  className="btn-ghost py-3 px-5 border border-slate-300 text-slate-700 hover:bg-slate-50 cursor-pointer w-full sm:w-auto justify-center font-sans tracking-tight font-bold"
                 >
                   <ArrowLeft size={16} /> Back
                 </button>
                 <button
                   type="submit"
-                  className="btn-primary py-3.5 px-8 flex items-center gap-2 bg-[#A32A02] hover:bg-[#138808] transition-colors text-white rounded-xl shadow-md cursor-pointer font-bold tracking-tight"
+                  className="btn-primary py-3.5 px-8 flex items-center gap-2 bg-[#A32A02] hover:bg-[#138808] transition-colors text-white rounded-xl shadow-md cursor-pointer font-bold tracking-tight w-full sm:w-auto"
                 >
                   Proceed to Final Review <ArrowRight size={18} />
                 </button>
@@ -608,11 +615,11 @@ export default function IntakeFormView() {
           {currentStep === 3 && (
             <div className="space-y-6 animate-in fade-in duration-300">
 
-              <ReadinessScore score={readiness.score} label={readiness.label} missingFields={readiness.missing} />
+              <ReadinessScore label={readiness.label} missingFields={readiness.missing} score={readiness.score} />
 
               <div className="p-5 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-4 shadow-sm">
                 <div className="p-2 bg-amber-100 rounded-full shrink-0 mt-0.5">
-                  <AlertCircle size={20} className="text-amber-600" />
+                  <AlertCircle className="text-amber-600" size={20} />
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-amber-900 uppercase tracking-wide mb-1 font-sans">Important Legal Disclaimer</h4>
@@ -628,7 +635,7 @@ export default function IntakeFormView() {
                 <div className="bg-[#FAF8F5] p-5 rounded-2xl border border-slate-200 shadow-inner">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-200 mb-3">
                     <h4 className="text-xs font-bold text-court-maroon uppercase tracking-wider flex items-center gap-1.5 font-sans">
-                      <User size={14} className="text-court-maroon" /> Identity Record
+                      <User className="text-court-maroon" size={14} /> Identity Record
                     </h4>
                     <button onClick={() => setCurrentStep(1)} className="text-xs font-bold text-slate-500 hover:text-ashoka-navy flex items-center gap-1 transition-colors">
                       <Edit3 size={12} /> Edit
@@ -653,7 +660,7 @@ export default function IntakeFormView() {
                 <div className="bg-[#FAF8F5] p-5 rounded-2xl border border-slate-200 shadow-inner">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-200 mb-3">
                     <h4 className="text-xs font-bold text-court-maroon uppercase tracking-wider flex items-center gap-1.5 font-sans">
-                      <Building2 size={14} className="text-court-maroon" /> Legal Specifications
+                      <Building2 className="text-court-maroon" size={14} /> Legal Specifications
                     </h4>
                     <button onClick={() => setCurrentStep(2)} className="text-xs font-bold text-slate-500 hover:text-ashoka-navy flex items-center gap-1 transition-colors">
                       <Edit3 size={12} /> Edit
@@ -706,7 +713,7 @@ export default function IntakeFormView() {
                 >
                   {generating ? (
                     <>
-                      <Loader2 size={18} className="animate-spin" />
+                      <Loader2 className="animate-spin" size={18} />
                       <span>Drafting Statutory Petition...</span>
                     </>
                   ) : (

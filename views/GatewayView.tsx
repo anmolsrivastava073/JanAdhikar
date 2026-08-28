@@ -20,7 +20,7 @@ export default function GatewayView() {
   const [copied, setCopied] = useState(false)
   const [hasAgreed, setHasAgreed] = useState(false)
 
-  const { stage, setStage, caseId, setCaseId, setUserProblem, language, hydrateState } = useCaseStore()
+  const { stage, setStage, caseId, setCaseId, setUserProblem, language, setLanguage, hydrateState, reset } = useCaseStore()
 
   const isProcessing = stage === 'INITIALIZING' || showPasskeyModal || isResumeNavigating
   
@@ -29,14 +29,23 @@ export default function GatewayView() {
     setLocalErr(null)
     setHasAgreed(false)
     try {
+      const currentText = text.trim();
+      const currentLang = language || 'English';
+
+      // Wipe old cache completely to prevent previous case data from leaking
+      reset();
+      sessionStorage.removeItem('janadhikar_problem');
+
+      // Set current details
+      setLanguage(currentLang);
       setStage('INITIALIZING')
       const { case_id } = await initCase()
       setCaseId(case_id)
-      setUserProblem(text.trim())
+      setUserProblem(currentText)
       setStage('IDLE')
       setShowPasskeyModal(true)
 
-      classifyCase(case_id, text.trim(), language || 'English').catch(() => {});
+      classifyCase(case_id, currentText, currentLang).catch(() => {});
     } catch (err: any) {
       setLocalErr(err?.response?.data?.detail || err.message || 'Something went wrong.')
       setStage('IDLE')
@@ -107,10 +116,7 @@ export default function GatewayView() {
       style={{ backgroundImage: "url('/bg.image.png')" }}
     >
       <div className="absolute top-6 left-6 z-20">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/95 backdrop-blur-sm border border-slate-300 text-slate-700 text-xs font-bold shadow-sm hover:text-ashoka-navy hover:bg-slate-50 transition cursor-pointer tracking-tight"
-        >
+        <Link className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/95 backdrop-blur-sm border border-slate-300 text-slate-700 text-xs font-bold shadow-sm hover:text-ashoka-navy hover:bg-slate-50 transition cursor-pointer tracking-tight" href="/">
           <ArrowLeft size={14} />
           <span>Back to Landing</span>
         </Link>
@@ -240,7 +246,7 @@ export default function GatewayView() {
               disabled={!text.trim() || stage === 'INITIALIZING'} 
               className="btn-primary w-full justify-center text-lg py-4 cursor-pointer bg-[#A32A02] hover:bg-[#138808] transition-colors text-white flex items-center gap-2 shadow-md rounded-xl font-bold tracking-tight"
             >
-              {stage === 'INITIALIZING' ? <><Loader2 className="animate-spin" /> Generating Your Case ID...</> : <>Start Analysis &amp; Form Fill <ArrowRight size={20} /></>}
+              {stage === 'INITIALIZING' ? <><Loader2 size={20} className="animate-spin"/> Generating Your Case ID...</> : <>Start Analysis &amp; Form Fill <ArrowRight size={20} /></>}
             </button>
 
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 px-2">
@@ -248,12 +254,12 @@ export default function GatewayView() {
                 <FolderOpen size={16} /> Resume Draft
               </button>
               <span className="hidden sm:block text-slate-300">•</span>
-              <Link href="/track" className="text-white font-bold text-sm hover:text-emerald-300 transition cursor-pointer flex items-center gap-1.5 drop-shadow-sm">
+              <Link className="text-white font-bold text-sm hover:text-emerald-300 transition cursor-pointer flex items-center gap-1.5 drop-shadow-sm" href="/track">
                 <Activity size={16} /> Track Filed Case
               </Link>
               <span className="hidden sm:block text-slate-300">•</span>
-              <button onClick={() => window.location.reload()} className="text-slate-300 flex items-center gap-1.5 text-sm font-medium hover:text-white transition cursor-pointer drop-shadow-sm">
-                <RefreshCw size={14}/> Reset Form
+              <button onClick={() => { reset(); setText(''); setPasskey(''); sessionStorage.removeItem('janadhikar_problem'); }} className="text-slate-300 flex items-center gap-1.5 text-sm font-medium hover:text-white transition cursor-pointer drop-shadow-sm">
+                <RefreshCw size={14} /> Reset Form
               </button>
             </div>
           </motion.div>
@@ -277,12 +283,12 @@ export default function GatewayView() {
             {localErr && <div className="p-3 bg-red-50 text-red-700 text-sm rounded-xl mb-4 text-left border border-red-200">{localErr}</div>}
 
             <button onClick={handleResume} disabled={!passkey.trim() || stage === 'INITIALIZING' || isResumeNavigating} className="btn-primary w-full justify-center text-lg py-4 mb-8 shadow-md cursor-pointer bg-[#A32A02] hover:bg-[#138808] transition-colors text-white rounded-xl font-bold tracking-tight">
-              {stage === 'INITIALIZING' || isResumeNavigating ? <Loader2 className="animate-spin" /> : <>Open case <ArrowRight size={20} /></>}
+              {stage === 'INITIALIZING' || isResumeNavigating ? <Loader2 size={20} className="animate-spin"/> : <>Open case <ArrowRight size={20} /></>}
             </button>
             
             <div className="flex items-center justify-between border-t border-slate-200 pt-6">
               <button onClick={() => setResumeMode(false)} className="text-slate-600 font-bold text-sm hover:text-ashoka-navy transition cursor-pointer tracking-tight">Start a new case instead</button>
-              <button onClick={() => window.location.reload()} className="text-slate-400 flex items-center gap-1.5 text-sm font-medium hover:text-ashoka-navy transition cursor-pointer tracking-tight"><RefreshCw size={14}/> Reset Form</button>
+              <button onClick={() => { reset(); setText(''); setPasskey(''); sessionStorage.removeItem('janadhikar_problem'); window.location.reload(); }} className="text-slate-400 flex items-center gap-1.5 text-sm font-medium hover:text-ashoka-navy transition cursor-pointer tracking-tight"><RefreshCw size={14} /> Reset Form</button>
             </div>
           </motion.div>
         )}

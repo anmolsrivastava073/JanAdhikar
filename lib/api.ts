@@ -13,8 +13,11 @@ export const downloadRtiPdf = (case_id: string) => api.get(`/api/rti/pdf/${case_
 export const rtiPredict = (case_id: string, draft_text: string | null = null) => api.post('/api/rti/predict', { case_id, draft_text }).then(r => r.data)
 export const rtiImprove = (case_id: string) => api.post('/api/rti/improve', { case_id }).then(r => r.data)
 
-// FIX: Point directly to the python backend to bypass Next.js API wrapper issues
+// Point directly to the python backend to bypass Next.js API wrapper issues
 export const analyzePio = (case_id: string, pio_text: string) => api.post('/api/analyze_pio_backend', { case_id, pio_text }).then(r => r.data)
+
+// Translate API
+export const translateDocument = (text: string, target_language: string) => api.post('/api/translate', { text, target_language }).then(r => r.data)
 
 export const transcribeAudio = (audioBlob: Blob, language: string) => {
   const formData = new FormData()

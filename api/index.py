@@ -90,6 +90,10 @@ class ReadinessRequest(BaseModel):
     route: Optional[str] = None
     form_data: Optional[Dict[str, Any]] = None
 
+class TranslateRequest(BaseModel):
+    text: str
+    target_language: str
+
 @app.get("/")
 def health_check():
     return {
@@ -102,6 +106,11 @@ def health_check():
 def init_case():
     new_case_id = case_manager.create_case()
     return CaseInitResponse(case_id=new_case_id, message="Save this ID safely.")
+
+@app.post("/api/translate")
+def translate_text(payload: TranslateRequest):
+    translated = outcome_engine.translate_document(payload.text, payload.target_language)
+    return {"translated_text": translated}
 
 @app.post("/api/transcribe")
 async def transcribe_audio(
