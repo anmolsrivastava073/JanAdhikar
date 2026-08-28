@@ -137,7 +137,7 @@ Rules for Drafting:
 5. Section 3: "Grounds for Appeal". Attack the PIO's cited exemption vigorously using the provided CIC Precedents and Legal Counter. 
 6. Section 4: "Prayer". Demand the information free of cost under Section 7(6) and recommend a Section 20(1) penalty on the PIO.
 
-Output pure, professional text. DO NOT use markdown code blocks like ```. Do not add conversational intro/outro.""" + self._get_lang_rule(language)
+Output pure, professional plain text. DO NOT use markdown formatting like **bold**, *italics*, or code blocks like ```. Do not add conversational intro/outro.""" + self._get_lang_rule(language)
 
                 user_content = f"""
 Appellant Name: {form_data.get('applicant_name', 'Applicant')}
@@ -172,7 +172,7 @@ Legal Grounds / Precedent to use: {pio_analysis.get('precedent_title', '')} - {p
         client = self._get_client()
         if client:
             try:
-                sys_prompt = f"You are an expert Indian Legal Translator. Translate the following legal document into formal, official {target_language}. Maintain the exact structure, numbering, and legal terminology appropriate for Indian civic applications. Output ONLY the translated text without markdown wrappers or conversational filler."
+                sys_prompt = f"You are an expert Indian Legal Translator. Translate the following legal document into formal, official {target_language}. Maintain the exact structure, numbering, and legal terminology appropriate for Indian civic applications. Output ONLY the translated text in pure plain text without markdown wrappers (**bold**, etc.) or conversational filler."
                 response = client.chat.completions.create(
                     model=self.model,
                     messages=[
