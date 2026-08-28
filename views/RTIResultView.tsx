@@ -42,7 +42,7 @@ const buildOptimalTweet = (dept: string, city: string, problem: string): string 
   const handles = getTwitterHandle(dept);
   const locationTag = city ? `in ${city}` : '';
   const prefix = `🚨 ${handles} Filed an RTI regarding an urgent issue ${locationTag}: `;
-  const suffix = `\n\n#RTI #CitizenRights #Transparency @CIC_India`;
+  const suffix = `\n\nNeeds immediate transparency. #RTI #Transparency @CIC_India`;
 
   const totalBudget = 280;
   const fixedLength = prefix.length + suffix.length;
