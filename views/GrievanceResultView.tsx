@@ -18,6 +18,26 @@ const getTwitterHandle = (dept: string) => {
   return '@CPGRAMS @PMOIndia';
 }
 
+const buildOptimalTweet = (dept: string, city: string, problem: string): string => {
+  const handles = getTwitterHandle(dept);
+  const locationTag = city ? `in ${city}` : '';
+  const prefix = `🚨 ${handles} Issue ${locationTag}: `;
+  const suffix = `\n\n#CitizenRights #Grievance @CPGRAMS`;
+
+  // Twitter standard limit is 280 characters
+  const maxAllowedProblemLength = 280 - prefix.length - suffix.length;
+  let cleanProblem = (problem || '').trim().replace(/\s+/g, ' ');
+
+  if (cleanProblem.length > maxAllowedProblemLength) {
+    // Truncate at word boundary to avoid breaking words
+    const slice = cleanProblem.slice(0, maxAllowedProblemLength - 3);
+    const lastSpace = slice.lastIndexOf(' ');
+    cleanProblem = (lastSpace > 0 ? slice.slice(0, lastSpace) : slice) + '...';
+  }
+
+  return `${prefix}${cleanProblem}${suffix}`;
+}
+
 export default function GrievanceResultView() {
   const router = useRouter()
   const { caseId, userProblem, formData, grievanceResult, setGrievanceResult, setStage, reset } = useCaseStore()
@@ -27,10 +47,7 @@ export default function GrievanceResultView() {
   const applicantName = formData?.applicant_name || "Applicant"
   const applicantCity = formData?.applicant_city || "Local Jurisdiction"
 
-  const handles = getTwitterHandle(formData?.target_department);
-  const city = applicantCity || 'my city';
-  const issue = defaultProblem.length > 100 ? defaultProblem.substring(0, 100) + '...' : defaultProblem;
-  const tweetText = `🚨 ${handles} Urgent civic issue in ${city}: ${issue}\n\nNeeds immediate resolution! #CitizenRights #Grievance @CPGRAMS`;
+  const tweetText = buildOptimalTweet(formData?.target_department, applicantCity, defaultProblem);
   const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
 
   const activeResult = grievanceResult && grievanceResult.violated_rights && grievanceResult.violated_rights.length > 0
