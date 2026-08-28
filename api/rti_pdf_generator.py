@@ -30,12 +30,7 @@ def sanitize_for_pdf(text: str) -> str:
     text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
     text = re.sub(r'\*(.*?)\*', r'\1', text)
     text = re.sub(r'#{1,6}\s?', '', text)
-    
-    # Preserve full utf-8 safety
-    try:
-        return text.encode('utf-8', 'errors').decode('utf-8')
-    except Exception:
-        return text
+    return text
 
 def escape_xml(text: str) -> str:
     """Escapes characters that break ReportLab's XML Paragraph parser."""
@@ -43,16 +38,15 @@ def escape_xml(text: str) -> str:
     return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 def _unicode_safe_pdf(title: str, body: str) -> bytes:
-    """Fallback text-stream PDF builder that ensures 100% unicode safety for Indic and regional languages."""
+    """Generates a clean UTF-8 encoded text stream PDF fallback for any language."""
     buffer = io.BytesIO()
-    # Construct a clean plaintext byte stream formatted as a downloadable document
-    full_content = f"========================================\n{title.upper()}\n========================================\n\n{body}\n\n[Generated via JanAdhikar Legal Engine]"
+    full_content = f"========================================\n{title.upper()}\n========================================\n\n{body}\n\n[Generated via JanAdhikar Legal Engine - Official Document]"
     buffer.write(full_content.encode('utf-8'))
     buffer.seek(0)
     return buffer.getvalue()
 
 def generate_rti_pdf(applicant_details: Dict[str, Any], department_info: Dict[str, Any], rti_body_text: str) -> bytes:
-    # If text contains non-ASCII characters (Indic scripts), use the robust unicode-safe stream builder
+    # Use unicode-safe stream for regional scripts to prevent layout/glyph corruption
     if any(ord(char) > 127 for char in rti_body_text):
         full_text = f"To,\nThe Public Information Officer (CPIO),\n{department_info.get('public_authority_name', 'Concerned Department')}\n\n"
         full_text += f"Applicant Name: {applicant_details.get('name', '')}\n"
@@ -63,10 +57,7 @@ def generate_rti_pdf(applicant_details: Dict[str, Any], department_info: Dict[st
         return _unicode_safe_pdf("FORM A — RTI APPLICATION (SECTION 6(1))", full_text)
 
     if not HAS_REPORTLAB:
-        full_text = f"Applicant: {applicant_details.get('name', 'Applicant')}\n"
-        full_text += f"Public Authority: {department_info.get('public_authority_name', 'CPIO')}\n\n"
-        full_text += rti_body_text
-        return _unicode_safe_pdf("FORM A — RTI APPLICATION (SECTION 6(1))", full_text)
+        return _unicode_safe_pdf("FORM A — RTI APPLICATION (SECTION 6(1))", rti_body_text)
 
     buffer = io.BytesIO()
     try:
