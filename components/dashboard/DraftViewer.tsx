@@ -19,7 +19,6 @@ export default function DraftViewer({ title = 'Generated Document', draft, caseI
 
   if (!draft) return null
 
-  // Strip Markdown **bold** and # headings just in case the AI leaked them
   const cleanDraftText = (displayDraft || '').replace(/\*\*(.*?)\*\*/g, '$1').replace(/#{1,6}\s?/g, '');
 
   const handleCopy = () => {
@@ -35,7 +34,7 @@ export default function DraftViewer({ title = 'Generated Document', draft, caseI
       if (caseId && selectedLang === 'English') {
         blob = await downloadRtiPdf(caseId)
       } else {
-        blob = await downloadGenericPdf(title, cleanDraftText)
+        blob = await downloadGenericPdf(`${title} (${selectedLang})`, cleanDraftText)
       }
       
       const fileBlob = new Blob([blob], { type: 'application/octet-stream' })
@@ -43,7 +42,7 @@ export default function DraftViewer({ title = 'Generated Document', draft, caseI
       
       const link = document.createElement('a')
       link.href = url
-      link.download = `${caseId ? `Application_${caseId}` : 'Legal_Notice'}.pdf`
+      link.download = `${caseId ? `Application_${caseId}_${selectedLang}` : 'Legal_Notice'}.pdf`
       document.body.appendChild(link)
       link.click()
       
@@ -73,14 +72,14 @@ export default function DraftViewer({ title = 'Generated Document', draft, caseI
     const content = `
       <html>
         <head>
-          <title>${title}</title>
+          <title>${title} - ${selectedLang}</title>
           <style>
             body { font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; padding: 40px; color: #000; }
             pre { white-space: pre-wrap; font-family: inherit; margin: 0; }
           </style>
         </head>
         <body>
-          <h2>${title}</h2>
+          <h2>${title} (${selectedLang})</h2>
           <pre>${cleanDraftText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
         </body>
       </html>
@@ -126,8 +125,6 @@ export default function DraftViewer({ title = 'Generated Document', draft, caseI
     }
   }
 
-  const isEnglish = selectedLang === 'English';
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -137,7 +134,7 @@ export default function DraftViewer({ title = 'Generated Document', draft, caseI
       <div className="flex flex-col md:flex-row items-center justify-between px-5 py-4 border-b border-slate-200 bg-[#FAF8F5] gap-3">
         <div className="flex items-center gap-2.5">
           <FileText size={16} className="text-[#FF9933] shrink-0" />
-          <h3 className="text-sm font-extrabold text-ashoka-navy tracking-tight font-sans truncate max-w-[200px] sm:max-w-none">{title}</h3>
+          <h3 className="text-sm font-extrabold text-ashoka-navy tracking-tight font-sans truncate max-w-[200px] sm:max-w-none">{title} ({selectedLang})</h3>
           {caseId && <span className="hidden sm:inline-block text-xs font-mono text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">#{caseId}</span>}
         </div>
         
@@ -167,8 +164,7 @@ export default function DraftViewer({ title = 'Generated Document', draft, caseI
             </button>
             <button 
               onClick={handleDownloadPdf} 
-              disabled={downloading || !isEnglish} 
-              title={!isEnglish ? "PDF export is only supported in English. Please Print or Copy text directly." : ""}
+              disabled={downloading}
               className="btn-ghost flex-1 sm:flex-none text-xs py-1.5 px-3 gap-1.5 bg-white border border-slate-200 text-slate-600 hover:text-ashoka-navy hover:bg-slate-50 disabled:opacity-50"
             >
               {downloading ? <><Loader2 size={13} className="animate-spin" /> Gen...</> : <><Download size={13} /> PDF</>}
