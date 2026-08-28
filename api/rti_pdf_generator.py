@@ -25,19 +25,22 @@ def sanitize_for_pdf(text: str) -> str:
         '\u200b': '', '\xa0': ' ', '\r': ''
     }
     for k, v in replacements.items():
-        text = text.replace(k, v)
+        text = text.text.replace(k, v) if hasattr(text, 'text') else text.replace(k, v)
         
     text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
     text = re.sub(r'\*(.*?)\*', r'\1', text)
     text = re.sub(r'#{1,6}\s?', '', text)
-    text = text.encode('latin-1', 'ignore').decode('latin-1')
     
-    return text
+    # Safely encode/decode to handle Unicode characters for regional languages
+    try:
+        return text.encode('utf-8').decode('utf-8')
+    except Exception:
+        return text.encode('ascii', 'ignore').decode('ascii')
 
 def escape_xml(text: str) -> str:
     """Escapes characters that break ReportLab's XML Paragraph parser."""
     if not text: return ""
-    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 def _simple_pdf(title: str, body: str) -> bytes:
     content = f"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
@@ -51,9 +54,9 @@ def _simple_pdf(title: str, body: str) -> bytes:
         stream_content += f"({safe_line}) ' "
     stream_content += "ET"
     
-    stream_len = len(stream_content.encode('latin-1', 'ignore'))
-    content += f"5 0 obj<</Length {stream_len}>>stream\n{stream_content}\nendstream\nendobj\nxref\n0 6\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000224 00000 n \n0000000293 00000 n \ntrailer<</Size 6/Root 1 0 R>>\nstartxref\n{len(content.encode('latin-1', 'ignore'))}\n%%EOF"
-    return content.encode('latin-1', 'ignore')
+    stream_len = len(stream_content.encode('utf-8', 'ignore'))
+    content += f"5 0 obj<</Length {stream_len}>>stream\n{stream_content}\nendstream\nendobj\nxref\n0 6\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000224 00000 n \n0000000293 00000 n \ntrailer<</Size 6/Root 1 0 R>>\nstartxref\n{len(content.encode('utf-8', 'ignore'))}\n%%EOF"
+    return content.encode('utf-8', 'ignore')
 
 def generate_rti_pdf(applicant_details: Dict[str, Any], department_info: Dict[str, Any], rti_body_text: str) -> bytes:
     if not HAS_REPORTLAB:
