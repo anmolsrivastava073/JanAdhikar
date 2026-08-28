@@ -44,16 +44,21 @@ const buildOptimalTweet = (dept: string, city: string, problem: string): string 
   const prefix = `🚨 ${handles} Filed an RTI regarding an urgent issue ${locationTag}: `;
   const suffix = `\n\n#RTI #CitizenRights #Transparency @CIC_India`;
 
-  const maxAllowedProblemLength = 280 - prefix.length - suffix.length;
+  const totalBudget = 280;
+  const fixedLength = prefix.length + suffix.length;
+  const availableLength = totalBudget - fixedLength;
+
   let cleanProblem = (problem || '').trim().replace(/\s+/g, ' ');
 
-  if (cleanProblem.length > maxAllowedProblemLength) {
-    const slice = cleanProblem.slice(0, maxAllowedProblemLength - 3);
-    const lastSpace = slice.lastIndexOf(' ');
-    cleanProblem = (lastSpace > 0 ? slice.slice(0, lastSpace) : slice) + '...';
+  if (cleanProblem.length <= availableLength) {
+    return `${prefix}${cleanProblem}${suffix}`;
   }
 
-  return `${prefix}${cleanProblem}${suffix}`;
+  const truncated = cleanProblem.substring(0, availableLength);
+  const lastSpace = truncated.lastIndexOf(' ');
+  const finalProblem = lastSpace > 0 ? truncated.substring(0, lastSpace) : truncated;
+
+  return `${prefix}${finalProblem}${suffix}`;
 }
 
 export default function RTIResultView({ initialDepartment }: RTIResultViewProps) {
