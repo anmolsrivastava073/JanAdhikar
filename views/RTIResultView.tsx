@@ -115,7 +115,6 @@ export default function RTIResultView({ initialDepartment }: RTIResultViewProps)
   const detectedRisks = Array.isArray(prediction?.detected_risks) ? prediction.detected_risks : [];
   const improvementSuggestions = Array.isArray(prediction?.improvement_suggestions) ? prediction.improvement_suggestions : [];
 
-  // Twitter dynamic content generator
   const applicantCity = formData?.applicant_city || "Local Jurisdiction";
   const defaultProblem = userProblem || "Seeking information under Section 6(1) of RTI Act.";
   const tweetText = buildOptimalTweet(formData?.target_department, applicantCity, defaultProblem);
@@ -136,7 +135,7 @@ export default function RTIResultView({ initialDepartment }: RTIResultViewProps)
           <button
             onClick={() => {
               setStage('RTI_GATHERING');
-              router.push('/dashboard/rti');
+              router.push('/dashboard/intake');
             }}
             className="btn-primary text-xs py-2.5 px-6 mx-auto cursor-pointer bg-[#A32A02] hover:bg-[#138808] transition-colors text-white font-bold font-sans tracking-tight"
           >
@@ -246,7 +245,7 @@ export default function RTIResultView({ initialDepartment }: RTIResultViewProps)
                 <button
                   onClick={() => {
                     setStage('RTI_GATHERING');
-                    router.push('/dashboard/rti');
+                    router.push('/dashboard/intake');
                   }}
                   className="btn-ghost text-sm cursor-pointer bg-white border-slate-300 text-slate-700 hover:bg-slate-50 font-sans tracking-tight font-bold"
                 >
