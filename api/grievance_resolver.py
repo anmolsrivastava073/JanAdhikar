@@ -3,6 +3,7 @@ import base64
 import re
 from typing import Dict, Any, List
 from .classifier import classifier
+from .facts_engine import resolve_pecuniary_jurisdiction, check_statute_of_limitations
 
 def extract_json_from_text(text: str) -> dict:
     """Safely extracts JSON from a string even if it's wrapped in markdown or conversational text."""
@@ -36,6 +37,16 @@ class GrievanceResolver:
     def _get_client(self):
         return classifier.client
 
+    def _attach_facts_engine_outputs(self, pack: Dict[str, Any], form_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Feature 3 (Pecuniary Jurisdiction) + Feature 1(T) (Statute of Limitations)
+        are attached to every grievance pack, AI-generated or fallback."""
+        form_data = form_data or {}
+        pack["pecuniary_jurisdiction"] = resolve_pecuniary_jurisdiction(form_data.get("financial_loss"))
+        pack["statute_of_limitations"] = check_statute_of_limitations(
+            form_data.get("incident_date"), "Rights/Grievance"
+        )
+        return pack
+
     def _generate_intelligent_analysis(self, user_problem: str, location: str, form_data: Dict[str, Any], files_data: List[Dict[str, Any]], language: str) -> Dict[str, Any]:
         p_lower = user_problem.lower()
         app_name = form_data.get("applicant_name") or "Applicant"
@@ -43,7 +54,7 @@ class GrievanceResolver:
         app_addr = form_data.get("applicant_address") or app_city
         app_contact = form_data.get("applicant_contact") or "Provided on Record"
 
-        return {
+        pack = {
             "violated_rights": [
                 "Right to Timely Public Service Delivery",
                 "Constitution of India (Article 14 & 21)"
@@ -54,6 +65,7 @@ class GrievanceResolver:
             "evidence_analysis": "Based on provided facts.",
             "demand_notice_draft": f"""FORMAL GRIEVANCE PETITION\nTo: Concerned Department, {app_city}\nFrom: {app_name}\nSubject: Grievance regarding {user_problem[:60]}\n..."""
         }
+        return self._attach_facts_engine_outputs(pack, form_data)
 
     def analyze_proof_and_rights(self, user_problem: str, location: str, form_data: Dict[str, Any], files_data: List[Dict[str, Any]], language: str) -> Dict[str, Any]:
         client = self._get_client()
@@ -97,7 +109,8 @@ class GrievanceResolver:
                 )
                 
                 raw_content = resp.choices[0].message.content.strip()
-                return extract_json_from_text(raw_content) # Use the robust extractor here!
+                pack = extract_json_from_text(raw_content) # Use the robust extractor here!
+                return self._attach_facts_engine_outputs(pack, form_data)
                 
             except Exception as e:
                 print(f"Grievance LLM call failed ({e}). Using expert legal rule engine.")

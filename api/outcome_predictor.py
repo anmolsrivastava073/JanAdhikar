@@ -7,6 +7,7 @@ from .prompts import (
     RTI_IMPROVE_SYSTEM_PROMPT
 )
 from .classifier import classifier
+from .facts_engine import scan_section_8_risks, SEVERABILITY_CLAUSE
 
 class OutcomeEngine:
     def __init__(self):
@@ -18,11 +19,31 @@ class OutcomeEngine:
     def _get_lang_rule(self, language: str) -> str:
         return f"\n\nCRITICAL LANGUAGE INSTRUCTION:\nThe user has selected '{language}'. ALL text output MUST be written in {language}."
 
+    def _ensure_severability(self, draft: str) -> str:
+        """Feature 2 safety net: guarantees every RTI draft carries a Section 10
+        severability clause, even if the LLM omitted one."""
+        if not draft:
+            return draft
+        lowered = draft.lower()
+        if "section 10" in lowered or "severability" in lowered:
+            return draft
+        return f"{draft.rstrip()}\n\n{SEVERABILITY_CLAUSE}"
+
     def generate_initial_rti(self, form_data: Dict[str, Any], user_problem: str, language: str) -> str:
         client = self._get_client()
+
+        # Feature 2: pre-flight Section 8 risk scan fed straight into the drafting prompt
+        section8_risks = scan_section_8_risks(user_problem)
+        risk_note = ""
+        if section8_risks:
+            risk_lines = "\n".join(
+                f"- {r['risk']} ({r['clause']}): {r['rewrite_hint']}" for r in section8_risks
+            )
+            risk_note = f"\n\nPRE-FLIGHT SECTION 8 RISK SCAN — proactively avoid these patterns:\n{risk_lines}"
+
         if client:
             try:
-                prompt = f"User Problem: {user_problem}\nForm Details:\n{json.dumps(form_data, indent=2)}"
+                prompt = f"User Problem: {user_problem}\nForm Details:\n{json.dumps(form_data, indent=2)}{risk_note}"
                 sys_prompt = RTI_DRAFT_SYSTEM_PROMPT + self._get_lang_rule(language)
                 
                 response = client.chat.completions.create(
@@ -33,13 +54,15 @@ class OutcomeEngine:
                     ],
                     temperature=0.2
                 )
-                return response.choices[0].message.content.strip()
+                draft = response.choices[0].message.content.strip()
+                return self._ensure_severability(draft)
             except Exception as e:
                 print(f"[OutcomeEngine] Initial RTI generation failed: {e}")
 
         app_name = form_data.get("applicant_name", "Applicant")
         app_city = form_data.get("applicant_city", "Local Jurisdiction")
-        return f"""APPLICATION UNDER SECTION 6(1) OF THE RIGHT TO INFORMATION ACT, 2005\n\nTo,\nThe CPIO,\n{app_city}\n\nSubject: RTI request regarding {user_problem[:60]}"""
+        fallback_draft = f"""APPLICATION UNDER SECTION 6(1) OF THE RIGHT TO INFORMATION ACT, 2005\n\nTo,\nThe CPIO,\n{app_city}\n\nSubject: RTI request regarding {user_problem[:60]}"""
+        return self._ensure_severability(fallback_draft)
 
     def predict_rti_outcome(self, draft_text: str, language: str) -> Dict[str, Any]:
         client = self._get_client()
@@ -82,12 +105,15 @@ class OutcomeEngine:
                     temperature=0.2,
                     response_format={"type": "json_object"}
                 )
-                return json.loads(response.choices[0].message.content.strip())
+                parsed = json.loads(response.choices[0].message.content.strip())
+                if parsed.get("improved_draft"):
+                    parsed["improved_draft"] = self._ensure_severability(parsed["improved_draft"])
+                return parsed
             except Exception as e:
                 print(f"[OutcomeEngine] RTI improvement failed: {e}")
 
         return {
-            "improved_draft": original_draft,
+            "improved_draft": self._ensure_severability(original_draft),
             "filing_instructions": ["Print 2 copies.", "Submit by Speed Post."]
         }
         

@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import useCaseStore from '@/store/caseStore';
 import { classifyCase, rtiGenerate, grievanceGenerate } from '@/lib/api';
+import FactsTriageCard from '@/components/dashboard/FactsTriageCard';
+import ReadinessScore from '@/components/dashboard/ReadinessScore';
 
 const formatAIText = (text?: string) => {
   if (!text) return null;
@@ -68,6 +70,57 @@ const formatAIText = (text?: string) => {
   return result;
 };
 
+// ─── F.A.C.T.S. / Litigation-Readiness helpers (client-side, mirrors api/facts_engine.py) ───
+
+const RTI_REQUIRED_FIELDS: [string, string][] = [
+  ['applicant_name', 'Full Name'],
+  ['applicant_address', 'Address'],
+  ['applicant_city', 'City'],
+  ['applicant_pincode', 'PIN Code'],
+  ['target_department', 'Target Authority'],
+  ['specific_records', 'Records Requested'],
+];
+
+const GRIEVANCE_REQUIRED_FIELDS: [string, string][] = [
+  ['applicant_name', 'Full Name'],
+  ['applicant_address', 'Address'],
+  ['applicant_city', 'City'],
+  ['target_department', 'Opposing Party'],
+  ['incident_date', 'Incident Date'],
+  ['desired_relief', 'Relief Sought'],
+];
+
+function computeReadiness(form: Record<string, any>, isRTI: boolean) {
+  const fields = isRTI ? RTI_REQUIRED_FIELDS : GRIEVANCE_REQUIRED_FIELDS;
+  const missing: string[] = [];
+  let filledCount = 0;
+  fields.forEach(([key, label]) => {
+    if (form?.[key] && String(form[key]).trim()) {
+      filledCount++;
+    } else {
+      missing.push(label);
+    }
+  });
+  const score = fields.length ? Math.round((filledCount / fields.length) * 100) : 0;
+  const label =
+    score >= 90 ? 'Court Ready' : score >= 60 ? 'Filing Viable' : score >= 30 ? 'Needs Detail' : 'Weak';
+  return { score, label, missing };
+}
+
+function resolvePecuniaryJurisdictionClient(amountRaw?: string) {
+  if (!amountRaw) return null;
+  const cleaned = String(amountRaw).replace(/[^\d.]/g, '');
+  if (!cleaned) return null;
+  const amount = parseFloat(cleaned);
+  if (isNaN(amount)) return null;
+
+  let forum = 'District Consumer Disputes Redressal Commission';
+  if (amount > 20000000) forum = 'National Consumer Disputes Redressal Commission (NCDRC)';
+  else if (amount > 5000000) forum = 'State Consumer Disputes Redressal Commission';
+
+  return { amount, forum };
+}
+
 export default function IntakeFormView() {
   const router = useRouter();
   const { 
@@ -105,6 +158,7 @@ export default function IntakeFormView() {
           file_or_work_no: formData.file_or_work_no || aiExtracted.file_or_work_no || '',
           incident_date: formData.incident_date || aiExtracted.incident_date || '',
           financial_loss: formData.financial_loss || aiExtracted.financial_loss || '',
+          evidence_available: formData.evidence_available || aiExtracted.evidence_available || '',
           desired_relief: formData.desired_relief || aiExtracted.desired_relief || '',
           statutory_fee: formData.statutory_fee || aiExtracted.statutory_fee || '',
           response_time: formData.response_time || aiExtracted.response_time || '',
@@ -176,7 +230,7 @@ export default function IntakeFormView() {
         <div className="bg-white/95 backdrop-blur-md p-8 rounded-3xl border border-slate-200 shadow-xl text-center space-y-3">
           <Loader2 size={40} className="animate-spin text-[#FF9933] mx-auto" />
           <h2 className="text-xl font-extrabold text-ashoka-navy tracking-tight">Analyzing Legal Merits...</h2>
-          <p className="text-slate-500 text-sm font-medium">Drafting statutory clauses, identifying jurisdiction, and computing fees.</p>
+          <p className="text-slate-500 text-sm font-medium">Running F.A.C.T.S. triage, resolving jurisdiction, and computing readiness.</p>
         </div>
       </div>
     );
@@ -184,6 +238,9 @@ export default function IntakeFormView() {
 
   const isRTI = classifyResult?.route === 'RTI';
   const isOther = classifyResult?.route === 'Other';
+  const readiness = computeReadiness(localForm, isRTI);
+  const factsChecklist = classifyResult?.facts_analysis?.checklist || [];
+  const livePecuniary = !isRTI ? resolvePecuniaryJurisdictionClient(localForm.financial_loss) : null;
 
   return (
     <div 
@@ -271,6 +328,10 @@ export default function IntakeFormView() {
                   </div>
                 </div>
               </div>
+
+              {factsChecklist.length > 0 && (
+                <FactsTriageCard checklist={factsChecklist} />
+              )}
 
               {isOther && (
                 <div className="p-6 bg-blue-50 border border-blue-200 rounded-3xl text-left shadow-sm">
@@ -371,6 +432,17 @@ export default function IntakeFormView() {
                     value={localForm.applicant_pincode}
                     onChange={e => handleChange('applicant_pincode', e.target.value)}
                     placeholder="e.g. 302001"
+                    className="w-full bg-[#FAF8F5] border border-slate-300 rounded-xl p-3.5 text-ashoka-navy placeholder-slate-400 focus:outline-none focus:border-[#FF9933] focus:ring-1 focus:ring-[#FF9933] text-sm font-medium transition-all"
+                  />
+                </div>
+
+                <div className="space-y-1.5 sm:col-span-2">
+                  <label className="text-xs font-bold text-ashoka-navy uppercase tracking-wide">Evidence / Reference on Record (Optional)</label>
+                  <input
+                    type="text"
+                    value={localForm.evidence_available}
+                    onChange={e => handleChange('evidence_available', e.target.value)}
+                    placeholder="e.g. Receipt no. 4521, screenshot of chat, application ref no."
                     className="w-full bg-[#FAF8F5] border border-slate-300 rounded-xl p-3.5 text-ashoka-navy placeholder-slate-400 focus:outline-none focus:border-[#FF9933] focus:ring-1 focus:ring-[#FF9933] text-sm font-medium transition-all"
                   />
                 </div>
@@ -505,6 +577,11 @@ export default function IntakeFormView() {
                         placeholder="Leave blank if not applicable"
                         className="w-full bg-[#FAF8F5] border border-slate-300 rounded-xl p-3.5 text-ashoka-navy placeholder-slate-400 focus:outline-none focus:border-[#FF9933] focus:ring-1 focus:ring-[#FF9933] text-sm transition-all"
                       />
+                      {livePecuniary && (
+                        <p className="text-[11px] font-bold text-blue-700 mt-1.5">
+                          → Pecuniary Jurisdiction: {livePecuniary.forum}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -530,7 +607,9 @@ export default function IntakeFormView() {
 
           {currentStep === 3 && (
             <div className="space-y-6 animate-in fade-in duration-300">
-              
+
+              <ReadinessScore score={readiness.score} label={readiness.label} missingFields={readiness.missing} />
+
               <div className="p-5 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-4 shadow-sm">
                 <div className="p-2 bg-amber-100 rounded-full shrink-0 mt-0.5">
                   <AlertCircle size={20} className="text-amber-600" />
@@ -598,6 +677,12 @@ export default function IntakeFormView() {
                           <span className="text-slate-500 font-bold block">REMEDY DEMANDED:</span>
                           <p className="font-medium text-slate-700 leading-relaxed mt-1">{localForm.desired_relief || 'Standard statutory relief with interest'}</p>
                         </div>
+                        {livePecuniary && (
+                          <div>
+                            <span className="text-slate-500 font-bold block">PECUNIARY JURISDICTION:</span>
+                            <p className="font-medium text-slate-700 leading-relaxed mt-1">{livePecuniary.forum}</p>
+                          </div>
+                        )}
                       </>
                     )}
                   </div>

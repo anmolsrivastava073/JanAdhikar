@@ -70,7 +70,9 @@ Failure to comply shall constrain the undersigned to initiate formal proceedings
 Yours faithfully,
 
 ${applicantName}
-(Complainant / Aggrieved Party)`
+(Complainant / Aggrieved Party)`,
+        pecuniary_jurisdiction: null,
+        statute_of_limitations: null,
       }
 
   const {
@@ -79,7 +81,9 @@ ${applicantName}
     target_portal_name = '',
     target_portal_url = '',
     evidence_analysis = '',
-    demand_notice_draft = ''
+    demand_notice_draft = '',
+    pecuniary_jurisdiction = null,
+    statute_of_limitations = null,
   } = activeResult
 
   return (
@@ -155,6 +159,31 @@ ${applicantName}
                 </div>
               </div>
 
+              {(pecuniary_jurisdiction?.amount_parsed != null || (statute_of_limitations?.status && statute_of_limitations.status !== 'UNKNOWN' && statute_of_limitations.status !== 'NOT_APPLICABLE')) && (
+                <div className="border-t border-slate-200 pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {pecuniary_jurisdiction?.amount_parsed != null && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-blue-800 bg-blue-100 px-2 py-0.5 rounded">
+                        Pecuniary Jurisdiction
+                      </span>
+                      <h4 className="text-sm font-bold text-slate-900 mt-2 tracking-tight">{pecuniary_jurisdiction.forum_name}</h4>
+                      <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">{pecuniary_jurisdiction.reasoning}</p>
+                    </div>
+                  )}
+                  {statute_of_limitations?.status && statute_of_limitations.status !== 'UNKNOWN' && statute_of_limitations.status !== 'NOT_APPLICABLE' && (
+                    <div className={`rounded-2xl p-5 border ${statute_of_limitations.status === 'EXPIRED' ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-200'}`}>
+                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${statute_of_limitations.status === 'EXPIRED' ? 'text-rose-800 bg-rose-100' : 'text-emerald-800 bg-emerald-100'}`}>
+                        Statute of Limitations
+                      </span>
+                      <h4 className="text-sm font-bold text-slate-900 mt-2 tracking-tight">
+                        {statute_of_limitations.status === 'EXPIRED' ? 'Filing Window Elapsed' : 'Within Filing Window'}
+                      </h4>
+                      <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">{statute_of_limitations.message}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {target_portal_name && (
                 <div className="border-t border-slate-200 pt-6">
                   <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
@@ -166,14 +195,15 @@ ${applicantName}
                       <p className="text-xs text-slate-600 mt-0.5 font-medium">Recommended statutory appellate authority & online filing portal</p>
                     </div>
                     {target_portal_url && (
-                      <a
-                        href={target_portal_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="btn-ghost text-xs py-2 px-4 gap-1.5 bg-white border border-emerald-300 text-emerald-800 hover:bg-emerald-100 shrink-0 self-start sm:self-auto font-bold tracking-tight shadow-sm"
-                      >
-                        <Globe size={14} /> Open Portal <ExternalLink size={12} />
-                      </a>
+                        <a
+                          href={target_portal_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn-ghost text-xs py-2 px-4 gap-1.5 bg-white border border-emerald-300 text-emerald-800 hover:bg-emerald-100 shrink-0 self-start sm:self-auto font-bold tracking-tight shadow-sm"
+                        >
+                          <Globe size={14} /> Open Portal <ExternalLink size={12} />
+                        </a>
+                      )}
                     )}
                   </div>
                 </div>
@@ -245,7 +275,7 @@ ${applicantName}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
                 <button
                   onClick={() => setSubStep(1)}
-                  className="btn-ghost text-sm py-3 px-5 border border-slate-300 cursor-pointer w-full sm:w-auto justify-center bg-white text-slate-700 hover:bg-slate-50 font-bold tracking-tight shadow-sm"
+                  className="btn-ghost text-sm py-3 px-5 border border-slate-300 cursor-pointer w-full sm:w-auto justify-center bg-white text-slate-700 hover:bg-slate-50 font-bold tracking-tight"
                 >
                   <ArrowLeft size={16} /> Back to Rights Analysis
                 </button>

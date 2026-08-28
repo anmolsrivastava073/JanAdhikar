@@ -54,11 +54,13 @@ Categorize the input into EXACTLY ONE of these three routes:
 - If a user says "My drain is clogged", DO NOT invent a city like "Lucknow" or a name like "Rohan". Leave those extracted fields as EMPTY STRINGS "".
 - ONLY populate personal details if explicitly provided in the text.
 
-=== STEP 3: LEGAL AUTO-DRAFTING RULES ===
+=== STEP 3: LEGAL AUTO-DRAFTING RULES (F.A.C.T.S. ALIGNED) ===
 - You MUST infer and draft professional legal clauses for the 'extracted_data' to save the citizen from writing legal jargon.
 - If RTI: Write specific, numbered requests for "Certified copies of...". Set statutory_fee to "₹10 (Postal Order/Online)". Set response_time to "30 Days (Sec 7(1))" OR "48 Hours (Life & Liberty)" if it involves immediate threat to life/safety.
 - If Grievance: Draft a formal "desired_relief" demanding specific action/refund, appending "with 18% p.a. statutory interest and compensation for mental agony" where financially applicable.
 - If Other: You MUST heavily populate the "specific_advice" field using a clear, numbered or bulleted list layout. Act as an empathetic but firm guide. Tell them exactly what to do.
+- Facts & Evidence (F): If the citizen mentions having a receipt, application number, photo, screenshot, or any proof, capture it in "evidence_available". Otherwise leave it "".
+- Timeline (T): If the citizen mentions a date the incident occurred, capture it in "incident_date" in a clear format (e.g., "15 March 2025"). This drives a statute-of-limitations check for Grievance matters.
 
 Respond ONLY in valid JSON format:
 {
@@ -80,6 +82,7 @@ Respond ONLY in valid JSON format:
     "file_or_work_no": "<Extract reference/work order/PPO number if mentioned, else ''>",
     "incident_date": "<Extract date of dispute/default. If none provided, write ''>",
     "financial_loss": "<Extract claim amount in Rs. If none, write ''>",
+    "evidence_available": "<Extract ONLY if the citizen mentions having proof/documents/receipts/photos/screenshots on record, else ''>",
     "desired_relief": "<If Grievance: Draft a formal, legally-phrased demand for remedy/refund. If RTI, leave ''>",
     "statutory_fee": "<If RTI: '₹10 (Postal Order/Online)'. If Grievance: 'N/A' or ''>",
     "response_time": "<If RTI: '30 Days (Sec 7(1) of RTI Act)'. If Grievance: '15 Days Statutory Notice'>"
@@ -108,6 +111,8 @@ Rules for Drafting:
    - "I state that I am a citizen of India and I am eligible to seek information under the RTI Act."
    - "The requested information does not fall under the exemptions contained in Section 8 or 9 of the RTI Act."
    - "The requisite RTI application fee of ₹10 has been affixed/paid."
+6. If a PRE-FLIGHT SECTION 8 RISK SCAN is supplied below, proactively rewrite the affected clauses to avoid every listed trigger before drafting.
+7. Always close with a short Severability clause invoking Section 10 of the RTI Act, stating that any exempt portion must still be severed and the remaining non-exempt information supplied.
 
 Return the draft as clean, highly professional text with proper line breaks."""
 
@@ -152,6 +157,7 @@ Your mandate is to rewrite the RTI application into an 'Optimized High-Success R
 2. Narrow overbroad requests to specific timelines.
 3. Where 8(1)(j) privacy is a risk, explicitly add a sentence justifying the "Larger Public Interest" (e.g., corruption, misallocation of public funds).
 4. Add a footnote invoking "Section 4(1)(b) (Proactive Disclosure)" or "Section 7(1) (30-day timeline) / Section 20(1) (Penalty for delay)" to legally pressure the PIO.
+5. Preserve (or add, if missing) a Severability clause invoking Section 10 of the RTI Act.
 
 Respond ONLY in valid JSON format:
 {

@@ -5,6 +5,7 @@ import logging
 from typing import Dict, Any, Optional
 from groq import Groq
 from .prompts import CLASSIFIER_SYSTEM_PROMPT, DYNAMIC_FORM_SCHEMAS
+from .facts_engine import facts_triage
 
 logger = logging.getLogger(__name__)
 
@@ -211,7 +212,13 @@ class RouteClassifier:
 
     def classify(self, user_text: str, language: str = "English") -> Dict[str, Any]:
         if not user_text or not user_text.strip():
-            return {"route": "Other", "sub_category": "Empty", "confidence": 1.0, "reasoning": "No text provided.", "specific_advice": "Please provide a valid problem statement.", "form_schema": [], "extracted_data": {}}
+            return {
+                "route": "Other", "sub_category": "Empty", "confidence": 1.0,
+                "reasoning": "No text provided.", "specific_advice": "Please provide a valid problem statement.",
+                "form_schema": [], "extracted_data": {}, "facts_analysis": None
+            }
+
+        result: Optional[Dict[str, Any]] = None
 
         if self.client:
             try:
@@ -240,10 +247,25 @@ class RouteClassifier:
                 result["route"] = route
                 result["form_schema"] = DYNAMIC_FORM_SCHEMAS.get(route, [])
                 result["extracted_data"] = result.get("extracted_data", {})
-                return result
             except Exception as e:
                 print(f"[Classifier Fallback] API failed ({e}).")
+                result = None
 
-        return self._rule_based_fallback(user_text)
+        if result is None:
+            result = self._rule_based_fallback(user_text)
+
+        # F.A.C.T.S. Legal Triage Engine — attached to every classification path
+        try:
+            result["facts_analysis"] = facts_triage(
+                route=result.get("route", "Other"),
+                user_problem=user_text,
+                form_data={},
+                extracted_facts=result.get("extracted_data", {}),
+            )
+        except Exception as e:
+            print(f"[FACTS Triage] failed ({e}).")
+            result["facts_analysis"] = None
+
+        return result
 
 classifier = RouteClassifier()

@@ -18,11 +18,12 @@ from .department_resolver import department_resolver
 from .rti_pdf_generator import generate_rti_pdf, generate_generic_pdf
 from .appeal_pdf_generator import generate_first_appeal_pdf
 from .grievance_resolver import grievance_resolver
-from .intake_chat import router as intake_router 
+from .intake_chat import router as intake_router
+from .facts_engine import calculate_readiness_score, facts_triage
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="JanAdhikar AI API", version="2.5")
+app = FastAPI(title="JanAdhikar AI API", version="2.6")
 
 app.add_middleware(
     CORSMiddleware,
@@ -83,6 +84,11 @@ class FirstAppealRequest(BaseModel):
     pio_reply_date: Optional[str] = None
     grounds_of_appeal: str
     legal_precedent: str
+
+class ReadinessRequest(BaseModel):
+    case_id: Optional[str] = None
+    route: Optional[str] = None
+    form_data: Optional[Dict[str, Any]] = None
 
 @app.get("/")
 def health_check():
@@ -160,10 +166,21 @@ def classify_problem(payload: ClassifyRequest):
         "user_problem": problem_text,
         "form_schema": result["form_schema"],
         "extracted_facts": result.get("extracted_data", {}),
+        "facts_analysis": result.get("facts_analysis"),
         "language": language
     })
 
     return {**result, "case_id": case_id}
+
+@app.post("/api/case/readiness")
+def compute_readiness(payload: ReadinessRequest):
+    """Feature 4 — Litigation-Readiness Score. Can be recomputed live as the
+    user fills in the intake form, either against submitted form_data or
+    against whatever is already saved for the case."""
+    case = case_manager.get_case(payload.case_id) if payload.case_id else None
+    route = payload.route or (case.get("route") if case else None) or "RTI"
+    form_data = payload.form_data or (case.get("form_data") if case else {}) or {}
+    return calculate_readiness_score(form_data, route)
 
 @app.post("/api/rti/generate")
 def generate_rti(payload: FormSubmitRequest):
