@@ -19,8 +19,11 @@ export default function DraftViewer({ title = 'Generated Document', draft, caseI
 
   if (!draft) return null
 
+  // Strip Markdown **bold** and # headings just in case the AI leaked them
+  const cleanDraftText = (displayDraft || '').replace(/\*\*(.*?)\*\*/g, '$1').replace(/#{1,6}\s?/g, '');
+
   const handleCopy = () => {
-    navigator.clipboard.writeText(displayDraft)
+    navigator.clipboard.writeText(cleanDraftText)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -32,7 +35,7 @@ export default function DraftViewer({ title = 'Generated Document', draft, caseI
       if (caseId && selectedLang === 'English') {
         blob = await downloadRtiPdf(caseId)
       } else {
-        blob = await downloadGenericPdf(title, displayDraft)
+        blob = await downloadGenericPdf(title, cleanDraftText)
       }
       
       const fileBlob = new Blob([blob], { type: 'application/octet-stream' })
@@ -78,7 +81,7 @@ export default function DraftViewer({ title = 'Generated Document', draft, caseI
         </head>
         <body>
           <h2>${title}</h2>
-          <pre>${displayDraft.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+          <pre>${cleanDraftText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
         </body>
       </html>
     `
@@ -188,7 +191,7 @@ export default function DraftViewer({ title = 'Generated Document', draft, caseI
             </div>
           )}
           <pre className="text-sm text-ashoka-navy font-sans font-medium leading-relaxed whitespace-pre-wrap break-words">
-            {displayDraft}
+            {cleanDraftText}
           </pre>
         </div>
       </div>
