@@ -84,24 +84,23 @@ export default function GatewayView() {
     setStage('INITIALIZING')
     try {
       const res = await getCase(passkey.trim().toUpperCase())
-      if (!res) throw new Error("Case not found.")
+      if (!res || !res.case_id) throw new Error("Case not found.")
       
       setIsResumeNavigating(true) 
       
-      hydrateState(res.case_id, res.data)
-      const st = res.data?.status
-      const rt = res.data?.route
+      hydrateState(res.case_id, res.data || {})
+      const st = res.computed_status || res.data?.status || 'FILED'
+      const rt = res.data?.route || res.route
       
+      // Determine proper redirect based on the saved state of the case
       if (st === 'rti_completed' || st === 'rti_predicted' || st === 'rti_drafted') {
         router.push('/dashboard/rti/result')
       } else if (st === 'grievance_completed') {
         router.push('/dashboard/grievance/result')
-      } else if (rt === 'RTI' || rt === 'Rights/Grievance' || st === 'classified' || st === 'initialized') {
+      } else if (rt === 'RTI' || rt === 'Rights/Grievance' || st === 'classified' || st === 'initialized' || st === 'FILED' || st === 'ACTIVE') {
         router.push('/dashboard/intake')
       } else {
-        setResumeMode(false)
-        setIsResumeNavigating(false)
-        setStage('IDLE')
+        router.push(`/track?case_id=${res.case_id}`)
       }
     } catch (err) {
       setIsResumeNavigating(false)
@@ -117,7 +116,7 @@ export default function GatewayView() {
     >
       <div className="absolute top-6 left-6 z-20">
         <Link className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/95 backdrop-blur-sm border border-slate-300 text-slate-700 text-xs font-bold shadow-sm hover:text-ashoka-navy hover:bg-slate-50 transition cursor-pointer tracking-tight" href="/">
-          <ArrowLeft size={14} />
+          <ArrowLeft size={14}/>
           <span>Back to Landing</span>
         </Link>
       </div>
@@ -139,7 +138,7 @@ export default function GatewayView() {
               <div className="absolute top-0 left-0 w-full h-1.5 bg-court-maroon"></div>
               
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-ashoka-navy border border-slate-200 rounded-full text-xs font-bold mb-4 shadow-sm tracking-tight">
-                <KeyRound size={13} />
+                <KeyRound size={13}/>
                 <span>Case Passkey Created</span>
               </div>
 
@@ -164,7 +163,7 @@ export default function GatewayView() {
                     onClick={handleCopyId}
                     className="w-full sm:w-auto flex-1 bg-[#A32A02] hover:bg-[#138808] text-white font-bold py-2.5 px-4 rounded-xl transition-colors shadow-md flex items-center justify-center gap-2 text-xs cursor-pointer tracking-tight"
                   >
-                    {copied ? <Check size={15} /> : <Copy size={15} />}
+                    {copied ? <Check size={15}/> : <Copy size={15}/>}
                     {copied ? 'Copied!' : 'Copy Case ID'}
                   </button>
 
@@ -172,7 +171,7 @@ export default function GatewayView() {
                     onClick={handleDownloadTxt}
                     className="w-full sm:w-auto flex-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold py-2.5 px-4 rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2 text-xs cursor-pointer tracking-tight"
                   >
-                    <Download size={15} className="text-slate-500" />
+                    <Download className="text-slate-500" size={15}/>
                     <span>Download .txt Key</span>
                   </button>
                 </div>
@@ -180,7 +179,7 @@ export default function GatewayView() {
 
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-left flex items-start gap-3 shadow-sm mb-4">
                 <div className="mt-0.5 text-slate-500 flex-shrink-0">
-                  <Lock size={15} />
+                  <Lock size={15}/>
                 </div>
                 <div>
                   <h4 className="text-[11px] font-bold text-ashoka-navy uppercase tracking-wide mb-0.5">Zero-Account Privacy:</h4>
@@ -211,7 +210,7 @@ export default function GatewayView() {
                 className="btn-primary w-full justify-center text-sm py-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed bg-[#A32A02] hover:bg-[#138808] text-white flex items-center gap-2 font-bold tracking-tight shadow-md"
               >
                 <span>Generate Form & Continue</span>
-                <ArrowRight size={16} />
+                <ArrowRight size={16}/>
               </button>
             </motion.div>
           </motion.div>
@@ -246,27 +245,27 @@ export default function GatewayView() {
               disabled={!text.trim() || stage === 'INITIALIZING'} 
               className="btn-primary w-full justify-center text-lg py-4 cursor-pointer bg-[#A32A02] hover:bg-[#138808] transition-colors text-white flex items-center gap-2 shadow-md rounded-xl font-bold tracking-tight"
             >
-              {stage === 'INITIALIZING' ? <><Loader2 size={20} className="animate-spin"/> Generating Your Case ID...</> : <>Start Analysis &amp; Form Fill <ArrowRight size={20} /></>}
+              {stage === 'INITIALIZING' ? <><Loader2 className="animate-spin" size={20}/> Generating Your Case ID...</> : <>Start Analysis &amp; Form Fill <ArrowRight size={20}/></>}
             </button>
 
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 px-2">
               <button onClick={() => setResumeMode(true)} className="text-white font-bold text-sm hover:text-blue-200 transition cursor-pointer flex items-center gap-1.5 drop-shadow-sm">
-                <FolderOpen size={16} /> Resume Draft
+                <FolderOpen size={16}/> Resume Draft
               </button>
               <span className="hidden sm:block text-slate-300">•</span>
               <Link className="text-white font-bold text-sm hover:text-emerald-300 transition cursor-pointer flex items-center gap-1.5 drop-shadow-sm" href="/track">
-                <Activity size={16} /> Track Filed Case
+                <Activity size={16}/> Track Filed Case
               </Link>
               <span className="hidden sm:block text-slate-300">•</span>
               <button onClick={() => { reset(); setText(''); setPasskey(''); sessionStorage.removeItem('janadhikar_problem'); }} className="text-slate-300 flex items-center gap-1.5 text-sm font-medium hover:text-white transition cursor-pointer drop-shadow-sm">
-                <RefreshCw size={14} /> Reset Form
+                <RefreshCw size={14}/> Reset Form
               </button>
             </div>
           </motion.div>
         ) : (
           <motion.div key="resume" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="w-full max-w-lg bg-white/95 backdrop-blur-sm p-8 rounded-3xl shadow-xl border border-slate-300 text-center z-10">
             <div className="w-14 h-14 bg-slate-50 text-court-maroon rounded-2xl flex items-center justify-center mx-auto mb-6 border border-slate-200">
-              <FolderOpen size={28} />
+              <FolderOpen size={28}/>
             </div>
             <h2 className="text-3xl font-extrabold text-ashoka-navy mb-3 tracking-tight">Resume your case</h2>
             <p className="text-slate-500 mb-8 font-medium">Enter your 12-character Case ID to pick up where you left off.</p>
@@ -283,12 +282,12 @@ export default function GatewayView() {
             {localErr && <div className="p-3 bg-red-50 text-red-700 text-sm rounded-xl mb-4 text-left border border-red-200">{localErr}</div>}
 
             <button onClick={handleResume} disabled={!passkey.trim() || stage === 'INITIALIZING' || isResumeNavigating} className="btn-primary w-full justify-center text-lg py-4 mb-8 shadow-md cursor-pointer bg-[#A32A02] hover:bg-[#138808] transition-colors text-white rounded-xl font-bold tracking-tight">
-              {stage === 'INITIALIZING' || isResumeNavigating ? <Loader2 size={20} className="animate-spin"/> : <>Open case <ArrowRight size={20} /></>}
+              {stage === 'INITIALIZING' || isResumeNavigating ? <Loader2 className="animate-spin" size={20}/> : <>Open case <ArrowRight size={20}/></>}
             </button>
             
             <div className="flex items-center justify-between border-t border-slate-200 pt-6">
               <button onClick={() => setResumeMode(false)} className="text-slate-600 font-bold text-sm hover:text-ashoka-navy transition cursor-pointer tracking-tight">Start a new case instead</button>
-              <button onClick={() => { reset(); setText(''); setPasskey(''); sessionStorage.removeItem('janadhikar_problem'); window.location.reload(); }} className="text-slate-400 flex items-center gap-1.5 text-sm font-medium hover:text-ashoka-navy transition cursor-pointer tracking-tight"><RefreshCw size={14} /> Reset Form</button>
+              <button onClick={() => { reset(); setText(''); setPasskey(''); sessionStorage.removeItem('janadhikar_problem'); window.location.reload(); }} className="text-slate-400 flex items-center gap-1.5 text-sm font-medium hover:text-ashoka-navy transition cursor-pointer tracking-tight"><RefreshCw size={14}/> Reset Form</button>
             </div>
           </motion.div>
         )}
