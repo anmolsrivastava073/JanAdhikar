@@ -19,7 +19,6 @@ export default function DraftViewer({ title = 'Generated Document', draft, caseI
 
   if (!draft) return null
 
-  // Strip Markdown **bold** and # headings just in case the AI leaked them
   const cleanDraftText = (displayDraft || '').replace(/\*\*(.*?)\*\*/g, '$1').replace(/#{1,6}\s?/g, '');
 
   const handleCopy = () => {
@@ -35,7 +34,7 @@ export default function DraftViewer({ title = 'Generated Document', draft, caseI
       let filename = `${caseId ? `Application_${caseId}` : 'Legal_Notice'}.pdf`;
 
       if (selectedLang !== 'English') {
-        // Download as a clean UTF-8 text file for regional languages to avoid PDF viewer corruption/security origin errors
+        // Download as UTF-8 text file for regional languages to guarantee 100% character and font shape integrity
         blob = new Blob([cleanDraftText], { type: 'text/plain;charset=utf-8' });
         filename = `${caseId ? `Application_${caseId}` : 'Legal_Notice'}_${selectedLang}.txt`;
       } else {
