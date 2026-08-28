@@ -34,6 +34,11 @@ def sanitize_for_pdf(text: str) -> str:
     
     return text
 
+def escape_xml(text: str) -> str:
+    """Escapes characters that break ReportLab's XML Paragraph parser."""
+    if not text: return ""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
 def _simple_pdf(title: str, body: str) -> bytes:
     content = f"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
     content += f"3 0 obj<</Type/Page/MediaBox[0 0 595 842]/Parent 2 0 R/Resources<</Font<</F1 4 0 R>>>>/Contents 5 0 R>>endobj\n"
@@ -73,22 +78,22 @@ def generate_rti_pdf(applicant_details: Dict[str, Any], department_info: Dict[st
     story.append(Spacer(1, 10*mm))
     
     story.append(Paragraph("<b>To,</b>", normal))
-    pa_name = sanitize_for_pdf(department_info.get('public_authority_name', 'The Central Public Information Officer (CPIO)'))
+    pa_name = escape_xml(sanitize_for_pdf(department_info.get('public_authority_name', 'The Central Public Information Officer (CPIO)')))
     story.append(Paragraph(f"The Central Public Information Officer (CPIO),<br/>{pa_name}", normal))
     story.append(Spacer(1, 8*mm))
     
     story.append(Paragraph("<b>1. Name of the Applicant:</b>", normal))
-    app_name = sanitize_for_pdf(applicant_details.get('name', ''))
+    app_name = escape_xml(sanitize_for_pdf(applicant_details.get('name', '')))
     story.append(Paragraph(f"&nbsp;&nbsp;&nbsp;&nbsp;{app_name}", normal))
     
     story.append(Paragraph("<b>2. Address for Correspondence:</b>", normal))
-    addr = sanitize_for_pdf(applicant_details.get('address', ''))
-    contact = sanitize_for_pdf(applicant_details.get('contact', ''))
+    addr = escape_xml(sanitize_for_pdf(applicant_details.get('address', '')))
+    contact = escape_xml(sanitize_for_pdf(applicant_details.get('contact', '')))
     story.append(Paragraph(f"&nbsp;&nbsp;&nbsp;&nbsp;{addr}<br/>&nbsp;&nbsp;&nbsp;&nbsp;Contact: {contact}", normal))
     story.append(Spacer(1, 5*mm))
 
     story.append(Paragraph("<b>3. Particulars of Information Required:</b>", normal))
-    clean_body = sanitize_for_pdf(rti_body_text).replace("\n", "<br/>")
+    clean_body = escape_xml(sanitize_for_pdf(rti_body_text)).replace("\n", "<br/>")
     story.append(Paragraph(clean_body, normal))
     story.append(Spacer(1, 8*mm))
     
@@ -100,7 +105,7 @@ def generate_rti_pdf(applicant_details: Dict[str, Any], department_info: Dict[st
     story.append(Paragraph("I declare that I am a citizen of India. The requested information does not fall under exemptions of Section 8 or 9 of the RTI Act.", normal))
     story.append(Spacer(1, 15*mm))
 
-    place_clean = sanitize_for_pdf(applicant_details.get('place', ''))
+    place_clean = escape_xml(sanitize_for_pdf(applicant_details.get('place', '')))
     story.append(Paragraph(f"<b>Place:</b> {place_clean}", normal))
     story.append(Paragraph("<b>Date:</b> ______________", normal))
     story.append(Paragraph("<b>Signature:</b> ________________________", ParagraphStyle('Sign', parent=normal, alignment=2)))
@@ -125,11 +130,11 @@ def generate_generic_pdf(title: str, body_text: str) -> bytes:
 
     story = []
     
-    clean_title = sanitize_for_pdf(title)
+    clean_title = escape_xml(sanitize_for_pdf(title))
     story.append(Paragraph(f"<b>{clean_title}</b>", title_style))
     story.append(Spacer(1, 10*mm))
 
-    clean_body = sanitize_for_pdf(body_text).replace("\n", "<br/>")
+    clean_body = escape_xml(sanitize_for_pdf(body_text)).replace("\n", "<br/>")
     story.append(Paragraph(clean_body, normal))
 
     doc.build(story)

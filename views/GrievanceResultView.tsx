@@ -195,15 +195,14 @@ ${applicantName}
                       <p className="text-xs text-slate-600 mt-0.5 font-medium">Recommended statutory appellate authority & online filing portal</p>
                     </div>
                     {target_portal_url && (
-                        <a
-                          href={target_portal_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="btn-ghost text-xs py-2 px-4 gap-1.5 bg-white border border-emerald-300 text-emerald-800 hover:bg-emerald-100 shrink-0 self-start sm:self-auto font-bold tracking-tight shadow-sm"
-                        >
-                          <Globe size={14} /> Open Portal <ExternalLink size={12} />
-                        </a>
-                      )}
+                      <a
+                        href={target_portal_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn-ghost text-xs py-2 px-4 gap-1.5 bg-white border border-emerald-300 text-emerald-800 hover:bg-emerald-100 shrink-0 self-start sm:self-auto font-bold tracking-tight shadow-sm"
+                      >
+                        <Globe size={14} /> Open Portal <ExternalLink size={12} />
+                      </a>
                     )}
                   </div>
                 </div>
