@@ -114,8 +114,10 @@ export default function IntakeChatView() {
         user_problem: fullProblemDescription,
       });
 
-      setStage('CLASSIFIED_CONFIRM');
-      router.push('/dashboard');
+      // Route based on classification straight to consolidated IntakeForm
+      const nextStage = classification.route === 'RTI' ? 'RTI_GATHERING' : 'GRIEVANCE_GATHERING';
+      setStage(nextStage);
+      router.push('/dashboard/intake');
     } catch (err) {
       const fallbackRoute = extractedData.route_guess === 'RTI' ? 'RTI' : 'Rights/Grievance';
       setClassifyResult({
@@ -125,8 +127,9 @@ export default function IntakeChatView() {
         reasoning: extractedData.additional_notes || 'Classified based on intake facts.',
         form_schema: []
       });
-      setStage('CLASSIFIED_CONFIRM');
-      router.push('/dashboard');
+      const nextStage = fallbackRoute === 'RTI' ? 'RTI_GATHERING' : 'GRIEVANCE_GATHERING';
+      setStage(nextStage);
+      router.push('/dashboard/intake');
     } finally {
       setClassifying(false);
     }
@@ -140,7 +143,7 @@ export default function IntakeChatView() {
       <div className="w-full max-w-3xl mx-auto flex items-center justify-between py-3 border-b border-slate-300 mb-4 bg-white/95 backdrop-blur-sm px-4 rounded-2xl shadow-sm relative z-10">
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push('/')}
             className="p-2 rounded-xl bg-white border border-slate-300 text-slate-600 hover:text-ashoka-navy hover:bg-slate-50 transition shadow-sm cursor-pointer"
             title="Back to Overview"
           >
