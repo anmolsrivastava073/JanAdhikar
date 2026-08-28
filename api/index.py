@@ -183,9 +183,6 @@ def classify_problem(payload: ClassifyRequest):
 
 @app.post("/api/case/readiness")
 def compute_readiness(payload: ReadinessRequest):
-    """Feature 4 — Litigation-Readiness Score. Can be recomputed live as the
-    user fills in the intake form, either against submitted form_data or
-    against whatever is already saved for the case."""
     case = case_manager.get_case(payload.case_id) if payload.case_id else None
     route = payload.route or (case.get("route") if case else None) or "RTI"
     form_data = payload.form_data or (case.get("form_data") if case else {}) or {}
@@ -214,7 +211,7 @@ def predict_rti(payload: RTIPredictRequest):
     case_id = payload.case_id or case_manager.create_case()
     case = case_manager.get_case(case_id) or {}
 
-    draft_text = payload.draft_text or case.get("initial_draft") or "Application under Section 6(1) of RTI Act 2005"
+    draft_text = payload.draft_text or case.get("initial_draft") or case.get("improved_draft") or "Application under Section 6(1) of RTI Act 2005"
     language = case.get("language", "English")
     
     prediction_result = outcome_engine.predict_rti_outcome(draft_text, language)
@@ -229,7 +226,7 @@ def improve_rti(payload: RTIImproveRequest):
     case_id = payload.case_id or case_manager.create_case()
     case = case_manager.get_case(case_id) or {}
 
-    initial_draft = case.get("initial_draft", "Application under Section 6(1) of RTI Act 2005")
+    initial_draft = case.get("initial_draft") or case.get("improved_draft", "Application under Section 6(1) of RTI Act 2005")
     pred = case.get("prediction_result", {})
     risks = pred.get("detected_risks", [])
     suggestions = pred.get("improvement_suggestions", [])
@@ -263,7 +260,7 @@ def download_rti_pdf(case_id: str):
     if not case:
         raise HTTPException(status_code=404, detail="Case ID not found.")
 
-    draft_text = case.get("improved_draft") or case.get("initial_draft", "")
+    draft_text = case.get("improved_draft") or case.get("initial_draft") or case.get("grievance_pack", {}).get("demand_notice_draft", "")
     dept_info = case.get("department_info") or {}
     form_data = case.get("form_data", {})
     applicant_details = {
@@ -278,7 +275,7 @@ def download_rti_pdf(case_id: str):
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename={case_id}_RTI.pdf"}
+        headers={"Content-Disposition": f"attachment; filename={case_id}_Document.pdf"}
     )
 
 @app.post("/api/analyze_pio_backend")
@@ -289,11 +286,9 @@ def analyze_pio_backend_endpoint(payload: PIOAnalysisRequest):
 
         case = case_manager.get_case(payload.case_id)
         if case:
-            # Inject PIO text so OutcomeEngine can view it
             case["pio_response_text"] = payload.pio_text
             language = case.get("language", "English")
             
-            # Request AI to dynamically generate the First Appeal based on facts
             draft = outcome_engine.generate_first_appeal(case, analysis, language)
 
             case_manager.update_case(payload.case_id, {
@@ -435,15 +430,3 @@ def get_case_state(case_id: str):
     }
 
     return response_payload
-
-@app.get("/api/debug/supabase")
-def debug_supabase():
-    from .case_manager import case_manager
-    import os
-    return {
-        "use_supabase": case_manager.use_supabase,
-        "has_url_env": bool(os.environ.get("SUPABASE_URL")),
-        "has_key_env": bool(os.environ.get("SUPABASE_KEY")),
-        "url_prefix": os.environ.get("SUPABASE_URL", "")[:20],
-        "memory_case_count": len(case_manager._memory_cases),
-    }
