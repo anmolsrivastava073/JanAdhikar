@@ -41,27 +41,72 @@ const getTwitterHandle = (dept: string) => {
   return '@CPGRAMS @PMOIndia';
 }
 
+// Words that look awkward if left dangling at the end of a truncated tweet.
+const TRAILING_STOPWORDS = new Set([
+  'a', 'an', 'the', 'and', 'or', 'but', 'of', 'to', 'in', 'on', 'at', 'for',
+  'with', 'from', 'by', 'as', 'is', 'are', 'was', 'were', 'be', 'that',
+  'which', 'this', 'these', 'those', 'it', 'its', 'about', 'into', 'onto'
+]);
+
+/**
+ * Builds a tweet that is GUARANTEED to be <= 280 characters and never ends
+ * mid-thought or on a dangling conjunction/preposition. If the citizen's
+ * problem text has to be cut, an ellipsis (…) is appended so it's obvious
+ * the text was trimmed rather than looking broken/incomplete.
+ */
 const buildOptimalTweet = (dept: string, city: string, problem: string): string => {
   const handles = getTwitterHandle(dept);
   const locationTag = city ? `in ${city}` : '';
+
+  // Avoid using # or & inside the template string to prevent URL intent truncation bugs
   const prefix = `🚨 ${handles} Filed an RTI regarding an urgent issue ${locationTag}: `;
   const suffix = `\n\nNeeds immediate transparency. #RTI #Transparency @CIC_India`;
 
-  const totalBudget = 280;
+  const TOTAL_BUDGET = 280;
+  const ELLIPSIS = '…';
+
   const fixedLength = prefix.length + suffix.length;
-  const availableLength = totalBudget - fixedLength;
+  const availableFull = TOTAL_BUDGET - fixedLength;
 
   let cleanProblem = (problem || '').trim().replace(/\s+/g, ' ');
 
-  if (cleanProblem.length <= availableLength) {
+  // Fits without any truncation at all.
+  if (cleanProblem.length <= availableFull) {
     return `${prefix}${cleanProblem}${suffix}`;
   }
 
-  const truncated = cleanProblem.substring(0, availableLength);
-  const lastSpace = truncated.lastIndexOf(' ');
-  const finalProblem = lastSpace > 0 ? truncated.substring(0, lastSpace) : truncated;
+  // Reserve room for the ellipsis so the final string never exceeds budget.
+  const availableLength = Math.max(0, availableFull - ELLIPSIS.length);
+  let truncated = cleanProblem.substring(0, availableLength);
 
-  return `${prefix}${finalProblem}${suffix}`;
+  // Cut back to the last full word boundary — never chop a word in half.
+  const lastSpace = truncated.lastIndexOf(' ');
+  if (lastSpace > 0) {
+    truncated = truncated.substring(0, lastSpace);
+  }
+
+  // Strip trailing punctuation left over from the cut.
+  truncated = truncated.replace(/[,;:\-–—.]+$/, '').trim();
+
+  // Strip dangling stopwords/conjunctions/prepositions ("...bills paid and",
+  // "...work order for") so the trimmed text reads as a clean clause, not
+  // a sentence cut off awkwardly mid-thought.
+  let words = truncated.split(' ');
+  while (words.length > 1 && TRAILING_STOPWORDS.has(words[words.length - 1].toLowerCase())) {
+    words.pop();
+  }
+  truncated = words.join(' ').replace(/[,;:\-–—.]+$/, '').trim();
+
+  const finalTweet = `${prefix}${truncated}${ELLIPSIS}${suffix}`;
+
+  // Absolute safety net — should never trigger given the math above, but
+  // guarantees we never ship something over the hard 280 char limit.
+  if (finalTweet.length > TOTAL_BUDGET) {
+    const overBy = finalTweet.length - TOTAL_BUDGET;
+    return `${prefix}${truncated.substring(0, Math.max(0, truncated.length - overBy))}${ELLIPSIS}${suffix}`;
+  }
+
+  return finalTweet;
 }
 
 export default function RTIResultView({ initialDepartment }: RTIResultViewProps) {
@@ -426,7 +471,7 @@ export default function RTIResultView({ initialDepartment }: RTIResultViewProps)
                       Public visibility accelerates administrative action. Generate a pre-filled Twitter/X post tagging relevant authorities.
                     </p>
                   </div>
-                  <a
+                  
                     href={tweetUrl}
                     target="_blank"
                     rel="noopener noreferrer"
