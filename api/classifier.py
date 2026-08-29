@@ -3,9 +3,12 @@ import json
 import re
 import logging
 from typing import Dict, Any, Optional
-from groq import Groq
-from .prompts import CLASSIFIER_SYSTEM_PROMPT, DYNAMIC_FORM_SCHEMAS
-from .facts_engine import facts_triage
+try:
+    from .prompts import CLASSIFIER_SYSTEM_PROMPT, DYNAMIC_FORM_SCHEMAS
+    from .facts_engine import facts_triage
+except ImportError:
+    from prompts import CLASSIFIER_SYSTEM_PROMPT, DYNAMIC_FORM_SCHEMAS
+    from facts_engine import facts_triage
 
 logger = logging.getLogger(__name__)
 

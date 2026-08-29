@@ -12,22 +12,49 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 
-from .case_manager import case_manager
-from .classifier import classifier, analyze_pio_response
-from .outcome_predictor import outcome_engine
-from .department_resolver import department_resolver
-from .rti_pdf_generator import generate_rti_pdf, generate_generic_pdf
-from .appeal_pdf_generator import generate_first_appeal_pdf
-from .grievance_resolver import grievance_resolver
-from .intake_chat import router as intake_router
-from .facts_engine import calculate_readiness_score, facts_triage
-from .social_complaint_generator import social_complaint_generator
-from .watchdog_engine import (
-    evaluate_watchdog_state,
-    run_scheduled_watchdog,
-    calculate_deadlines,
-    calculate_section_20_penalty
-)
+import sys
+from pathlib import Path
+
+_api_dir = Path(__file__).resolve().parent
+_root_dir = _api_dir.parent
+for p in [str(_api_dir), str(_root_dir)]:
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
+try:
+    from .case_manager import case_manager
+    from .classifier import classifier, analyze_pio_response
+    from .outcome_predictor import outcome_engine
+    from .department_resolver import department_resolver
+    from .rti_pdf_generator import generate_rti_pdf, generate_generic_pdf
+    from .appeal_pdf_generator import generate_first_appeal_pdf
+    from .grievance_resolver import grievance_resolver
+    from .intake_chat import router as intake_router
+    from .facts_engine import calculate_readiness_score, facts_triage
+    from .social_complaint_generator import social_complaint_generator
+    from .watchdog_engine import (
+        evaluate_watchdog_state,
+        run_scheduled_watchdog,
+        calculate_deadlines,
+        calculate_section_20_penalty
+    )
+except ImportError:
+    from case_manager import case_manager
+    from classifier import classifier, analyze_pio_response
+    from outcome_predictor import outcome_engine
+    from department_resolver import department_resolver
+    from rti_pdf_generator import generate_rti_pdf, generate_generic_pdf
+    from appeal_pdf_generator import generate_first_appeal_pdf
+    from grievance_resolver import grievance_resolver
+    from intake_chat import router as intake_router
+    from facts_engine import calculate_readiness_score, facts_triage
+    from social_complaint_generator import social_complaint_generator
+    from watchdog_engine import (
+        evaluate_watchdog_state,
+        run_scheduled_watchdog,
+        calculate_deadlines,
+        calculate_section_20_penalty
+    )
 
 logger = logging.getLogger(__name__)
 

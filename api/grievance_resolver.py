@@ -3,9 +3,19 @@ import base64
 import re
 import logging
 from typing import Dict, Any, List
-from .classifier import classifier
-from .facts_engine import resolve_pecuniary_jurisdiction, check_statute_of_limitations
-from .data.jurisdiction_knowledge import resolve_knowledge_graph_node
+try:
+    from .classifier import classifier
+    from .facts_engine import resolve_pecuniary_jurisdiction, check_statute_of_limitations
+    from .data.jurisdiction_knowledge import resolve_knowledge_graph_node
+except ImportError:
+    try:
+        from classifier import classifier
+        from facts_engine import resolve_pecuniary_jurisdiction, check_statute_of_limitations
+        from data.jurisdiction_knowledge import resolve_knowledge_graph_node
+    except ImportError:
+        from classifier import classifier
+        from facts_engine import resolve_pecuniary_jurisdiction, check_statute_of_limitations
+        from jurisdiction_knowledge import resolve_knowledge_graph_node
 
 logger = logging.getLogger(__name__)
 

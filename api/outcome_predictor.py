@@ -2,14 +2,34 @@ import json
 import logging
 from typing import Dict, Any, List
 from groq import Groq
-from .prompts import (
-    RTI_DRAFT_SYSTEM_PROMPT,
-    RTI_PREDICTOR_SYSTEM_PROMPT,
-    RTI_IMPROVE_SYSTEM_PROMPT
-)
-from .classifier import classifier
-from .facts_engine import scan_section_8_risks, SEVERABILITY_CLAUSE
-from .data.jurisdiction_knowledge import resolve_knowledge_graph_node
+try:
+    from .prompts import (
+        RTI_DRAFT_SYSTEM_PROMPT,
+        RTI_PREDICTOR_SYSTEM_PROMPT,
+        RTI_IMPROVE_SYSTEM_PROMPT
+    )
+    from .classifier import classifier
+    from .facts_engine import scan_section_8_risks, SEVERABILITY_CLAUSE
+    from .data.jurisdiction_knowledge import resolve_knowledge_graph_node
+except ImportError:
+    try:
+        from prompts import (
+            RTI_DRAFT_SYSTEM_PROMPT,
+            RTI_PREDICTOR_SYSTEM_PROMPT,
+            RTI_IMPROVE_SYSTEM_PROMPT
+        )
+        from classifier import classifier
+        from facts_engine import scan_section_8_risks, SEVERABILITY_CLAUSE
+        from data.jurisdiction_knowledge import resolve_knowledge_graph_node
+    except ImportError:
+        from prompts import (
+            RTI_DRAFT_SYSTEM_PROMPT,
+            RTI_PREDICTOR_SYSTEM_PROMPT,
+            RTI_IMPROVE_SYSTEM_PROMPT
+        )
+        from classifier import classifier
+        from facts_engine import scan_section_8_risks, SEVERABILITY_CLAUSE
+        from jurisdiction_knowledge import resolve_knowledge_graph_node
 
 logger = logging.getLogger(__name__)
 

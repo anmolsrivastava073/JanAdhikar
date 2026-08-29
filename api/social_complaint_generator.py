@@ -8,8 +8,16 @@ social media threads targeting the correct ministry/authority handles.
 import json
 import logging
 from typing import Dict, Any, List, Optional
-from .classifier import classifier
-from .data.jurisdiction_knowledge import resolve_knowledge_graph_node
+try:
+    from .classifier import classifier
+    from .data.jurisdiction_knowledge import resolve_knowledge_graph_node
+except ImportError:
+    try:
+        from classifier import classifier
+        from data.jurisdiction_knowledge import resolve_knowledge_graph_node
+    except ImportError:
+        from classifier import classifier
+        from jurisdiction_knowledge import resolve_knowledge_graph_node
 
 logger = logging.getLogger(__name__)
 

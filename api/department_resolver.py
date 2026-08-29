@@ -1,8 +1,16 @@
 import json
 import logging
 from typing import Dict, Any, List
-from .classifier import classifier
-from .data.jurisdiction_knowledge import resolve_knowledge_graph_node, AUTHORITY_KNOWLEDGE_GRAPH
+try:
+    from .classifier import classifier
+    from .data.jurisdiction_knowledge import resolve_knowledge_graph_node, AUTHORITY_KNOWLEDGE_GRAPH
+except ImportError:
+    try:
+        from classifier import classifier
+        from data.jurisdiction_knowledge import resolve_knowledge_graph_node, AUTHORITY_KNOWLEDGE_GRAPH
+    except ImportError:
+        from classifier import classifier
+        from jurisdiction_knowledge import resolve_knowledge_graph_node, AUTHORITY_KNOWLEDGE_GRAPH
 
 logger = logging.getLogger(__name__)
 
