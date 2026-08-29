@@ -3,6 +3,7 @@ import json
 import re
 import logging
 from typing import Dict, Any, Optional
+from groq import Groq
 try:
     from .prompts import CLASSIFIER_SYSTEM_PROMPT, DYNAMIC_FORM_SCHEMAS
     from .facts_engine import facts_triage
@@ -180,7 +181,8 @@ class RouteClassifier:
         if api_key and api_key.startswith("gsk_"):
             try:
                 self.client = Groq(api_key=api_key)
-            except Exception:
+            except Exception as e:
+                logger.error(f"[RouteClassifier] Failed to initialize Groq client: {e}")
                 self.client = None
         else:
             self.client = None
