@@ -41,72 +41,27 @@ const getTwitterHandle = (dept: string) => {
   return '@CPGRAMS @PMOIndia';
 }
 
-// Words that look awkward if left dangling at the end of a truncated tweet.
-const TRAILING_STOPWORDS = new Set([
-  'a', 'an', 'the', 'and', 'or', 'but', 'of', 'to', 'in', 'on', 'at', 'for',
-  'with', 'from', 'by', 'as', 'is', 'are', 'was', 'were', 'be', 'that',
-  'which', 'this', 'these', 'those', 'it', 'its', 'about', 'into', 'onto'
-]);
-
-/**
- * Builds a tweet that is GUARANTEED to be <= 280 characters and never ends
- * mid-thought or on a dangling conjunction/preposition. If the citizen's
- * problem text has to be cut, an ellipsis (…) is appended so it's obvious
- * the text was trimmed rather than looking broken/incomplete.
- */
 const buildOptimalTweet = (dept: string, city: string, problem: string): string => {
   const handles = getTwitterHandle(dept);
   const locationTag = city ? `in ${city}` : '';
-
-  // Avoid using # or & inside the template string to prevent URL intent truncation bugs
   const prefix = `🚨 ${handles} Filed an RTI regarding an urgent issue ${locationTag}: `;
   const suffix = `\n\nNeeds immediate transparency. #RTI #Transparency @CIC_India`;
 
-  const TOTAL_BUDGET = 280;
-  const ELLIPSIS = '…';
-
+  const totalBudget = 280;
   const fixedLength = prefix.length + suffix.length;
-  const availableFull = TOTAL_BUDGET - fixedLength;
+  const availableLength = totalBudget - fixedLength;
 
   let cleanProblem = (problem || '').trim().replace(/\s+/g, ' ');
 
-  // Fits without any truncation at all.
-  if (cleanProblem.length <= availableFull) {
+  if (cleanProblem.length <= availableLength) {
     return `${prefix}${cleanProblem}${suffix}`;
   }
 
-  // Reserve room for the ellipsis so the final string never exceeds budget.
-  const availableLength = Math.max(0, availableFull - ELLIPSIS.length);
-  let truncated = cleanProblem.substring(0, availableLength);
-
-  // Cut back to the last full word boundary — never chop a word in half.
+  const truncated = cleanProblem.substring(0, availableLength);
   const lastSpace = truncated.lastIndexOf(' ');
-  if (lastSpace > 0) {
-    truncated = truncated.substring(0, lastSpace);
-  }
+  const finalProblem = lastSpace > 0 ? truncated.substring(0, lastSpace) : truncated;
 
-  // Strip trailing punctuation left over from the cut.
-  truncated = truncated.replace(/[,;:\-–—.]+$/, '').trim();
-
-  // Strip dangling stopwords/conjunctions/prepositions ("...bills paid and",
-  // "...work order for") so the trimmed text reads as a clean clause, not
-  // a sentence cut off awkwardly mid-thought.
-  let words = truncated.split(' ');
-  while (words.length > 1 && TRAILING_STOPWORDS.has(words[words.length - 1].toLowerCase())) {
-    words.pop();
-  }
-  truncated = words.join(' ').replace(/[,;:\-–—.]+$/, '').trim();
-
-  const finalTweet = `${prefix}${truncated}${ELLIPSIS}${suffix}`;
-
-  // Absolute safety net — should never trigger given the math above, but
-  // guarantees we never ship something over the hard 280 char limit.
-  if (finalTweet.length > TOTAL_BUDGET) {
-    const overBy = finalTweet.length - TOTAL_BUDGET;
-    return `${prefix}${truncated.substring(0, Math.max(0, truncated.length - overBy))}${ELLIPSIS}${suffix}`;
-  }
-
-  return finalTweet;
+  return `${prefix}${finalProblem}${suffix}`;
 }
 
 export default function RTIResultView({ initialDepartment }: RTIResultViewProps) {
@@ -132,9 +87,7 @@ export default function RTIResultView({ initialDepartment }: RTIResultViewProps)
   const [loadingImprove, setLoadingImprove] = useState(false);
   const [improvedDraft, setImprovedDraft] = useState<string | null>(null);
   const [copiedPasskey, setCopiedPasskey] = useState(false);
-  const [watchdogActive, setWatchdogActive] = useState(true);
 
-  // Auto-fetch case from backend if store state is empty
   useEffect(() => {
     const loadCaseIfNeeded = async () => {
       if (!rtiDraft && caseId) {
@@ -157,7 +110,6 @@ export default function RTIResultView({ initialDepartment }: RTIResultViewProps)
     loadCaseIfNeeded();
   }, [caseId, rtiDraft, hydrateState, setRtiDraft]);
 
-  // Activate watchdog automatically when case is created/viewed
   useEffect(() => {
     if (caseId) {
       startWatchdog(caseId).catch((err) => console.log('Watchdog startup check:', err));
@@ -191,7 +143,6 @@ export default function RTIResultView({ initialDepartment }: RTIResultViewProps)
         setRtiDraft(res.improved_draft || res.draft_text);
       }
       setSubStep(2);
-      // Ensure watchdog is initialized
       await startWatchdog(caseId);
     } catch (err) {
       console.error('Improvement failed:', err);
@@ -382,7 +333,6 @@ export default function RTIResultView({ initialDepartment }: RTIResultViewProps)
               Your application has been polished to withstand statutory rejections. Download the official PDF or copy the text.
             </p>
 
-            {/* SLA WATCHDOG ACTIVATED PROMINENT CARD */}
             <div className="mb-6 bg-gradient-to-r from-emerald-950/90 to-ashoka-navy/95 border-2 border-emerald-500/40 rounded-3xl p-6 sm:p-8 text-white shadow-2xl backdrop-blur-md relative overflow-hidden">
               <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
               
@@ -471,7 +421,7 @@ export default function RTIResultView({ initialDepartment }: RTIResultViewProps)
                       Public visibility accelerates administrative action. Generate a pre-filled Twitter/X post tagging relevant authorities.
                     </p>
                   </div>
-                  
+                  <a
                     href={tweetUrl}
                     target="_blank"
                     rel="noopener noreferrer"
