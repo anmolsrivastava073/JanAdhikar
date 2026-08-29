@@ -1,3 +1,4 @@
+import os
 import io
 import json
 import email
@@ -20,6 +21,13 @@ from .appeal_pdf_generator import generate_first_appeal_pdf
 from .grievance_resolver import grievance_resolver
 from .intake_chat import router as intake_router
 from .facts_engine import calculate_readiness_score, facts_triage
+from .social_complaint_generator import social_complaint_generator
+from .watchdog_engine import (
+    evaluate_watchdog_state,
+    run_scheduled_watchdog,
+    calculate_deadlines,
+    calculate_section_20_penalty
+)
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +101,26 @@ class ReadinessRequest(BaseModel):
 class TranslateRequest(BaseModel):
     text: str
     target_language: str
+
+class SocialGenerateRequest(BaseModel):
+    case_id: Optional[str] = None
+    user_problem: Optional[str] = ""
+    language: Optional[str] = "English"
+    form_data: Optional[Dict[str, Any]] = None
+
+class WatchdogStartRequest(BaseModel):
+    case_id: str
+    life_liberty: Optional[bool] = False
+
+class WatchdogResponseRequest(BaseModel):
+    case_id: str
+    pio_text: Optional[str] = ""
+    response_received_at: Optional[str] = None
+
+class WatchdogSimulateRequest(BaseModel):
+    case_id: str
+    scenario: str  # "today", "7_days", "3_days", "due_today", "overdue_10", "overdue_100", "response_ontime", "response_late", "custom", "reset"
+    simulated_days_ago: Optional[int] = None
 
 @app.get("/")
 def health_check():
@@ -286,24 +314,29 @@ def download_rti_pdf(case_id: str):
 @app.post("/api/analyze_pio_backend")
 def analyze_pio_backend_endpoint(payload: PIOAnalysisRequest):
     try:
+        clean_id = payload.case_id.strip().upper()
         analysis = analyze_pio_response(payload.pio_text or "")
-        analysis["case_id"] = payload.case_id
+        analysis["case_id"] = clean_id
 
-        case = case_manager.get_case(payload.case_id)
+        case = case_manager.get_case(clean_id)
         if case:
             case["pio_response_text"] = payload.pio_text
+            if not case.get("response_received_at"):
+                case["response_received_at"] = datetime.now(timezone.utc).isoformat()
+            case["pio_response_date"] = case["response_received_at"]
+
             language = case.get("language", "English")
-            
             draft = outcome_engine.generate_first_appeal(case, analysis, language)
 
-            case_manager.update_case(payload.case_id, {
-                "pio_response_text": payload.pio_text,
-                "exemption_cited": analysis.get("exemption_cited"),
-                "legal_counter": analysis.get("legal_counter"),
-                "precedent_title": analysis.get("precedent_title"),
-                "status": "pio_analyzed",
-                "first_appeal_draft": draft
-            })
+            case["exemption_cited"] = analysis.get("exemption_cited")
+            case["legal_counter"] = analysis.get("legal_counter")
+            case["precedent_title"] = analysis.get("precedent_title")
+            case["status"] = "pio_analyzed"
+            case["first_appeal_draft"] = draft
+
+            # Run deterministic watchdog evaluation
+            evaluated = evaluate_watchdog_state(case)
+            case_manager.update_case(clean_id, evaluated)
 
         return analysis
     except Exception as e:
@@ -385,53 +418,298 @@ def generate_generic_pdf_endpoint(payload: GeneratePDFRequest):
         headers={"Content-Disposition": f"attachment; filename=Document.pdf"}
     )
 
+@app.post("/api/social/generate")
+def generate_social_campaign(payload: SocialGenerateRequest):
+    """
+    GraphRAG-powered social media complaint generator.
+    Produces Twitter thread, LinkedIn post, and WhatsApp broadcast
+    tagged with verified ministry/authority handles.
+    """
+    case_id = payload.case_id or ""
+    case = case_manager.get_case(case_id.strip().upper()) if case_id else {}
+
+    user_problem = payload.user_problem or case.get("user_problem", "Civic grievance")
+    language = payload.language or case.get("language", "English")
+    form_data = payload.form_data or case.get("form_data", {})
+    dept_info = case.get("department_info", {})
+
+    result = social_complaint_generator.generate(
+        user_problem=user_problem,
+        form_data=form_data,
+        department_info=dept_info,
+        case_id=case_id,
+        language=language
+    )
+    return {"case_id": case_id, **result}
+
+# ----------------- WATCHDOG & SLA ENGINE ENDPOINTS -----------------
+
+@app.post("/api/watchdog/start")
+def start_watchdog(payload: WatchdogStartRequest):
+    clean_id = payload.case_id.strip().upper()
+    case = case_manager.get_case(clean_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case ID not found.")
+    
+    case["watchdog_enabled"] = True
+    if payload.life_liberty:
+        case["life_liberty_flag"] = True
+        
+    evaluated_case = evaluate_watchdog_state(case)
+    case_manager.update_case(clean_id, evaluated_case)
+    
+    return {
+        "status": "success",
+        "message": "JanAdhikar SLA Watchdog is now monitoring this case.",
+        "case_id": clean_id,
+        "watchdog_status": evaluated_case.get("watchdog_status"),
+        "filing_date": evaluated_case.get("filing_date"),
+        "response_due_date": evaluated_case.get("response_due_date"),
+        "first_appeal_due_date": evaluated_case.get("first_appeal_due_date"),
+        "days_remaining": evaluated_case.get("days_remaining"),
+        "days_overdue": evaluated_case.get("days_overdue"),
+        "section_20_penalty_inr": evaluated_case.get("section_20_penalty_inr")
+    }
+
+@app.get("/api/watchdog/{case_id}")
+def get_watchdog_case(case_id: str):
+    clean_id = case_id.strip().upper()
+    case_data = case_manager.get_case(clean_id)
+    if not case_data:
+        raise HTTPException(status_code=404, detail="Case ID not found.")
+    
+    evaluated = evaluate_watchdog_state(case_data)
+    case_manager.update_case(clean_id, evaluated)
+    
+    return {
+        "case_id": clean_id,
+        "watchdog_enabled": evaluated.get("watchdog_enabled", True),
+        "watchdog_status": evaluated.get("watchdog_status", "ACTIVE"),
+        "computed_status": evaluated.get("computed_status", "ACTIVE"),
+        "filing_date": evaluated.get("filing_date"),
+        "response_due_date": evaluated.get("response_due_date"),
+        "first_appeal_due_date": evaluated.get("first_appeal_due_date"),
+        "response_received_at": evaluated.get("response_received_at") or evaluated.get("pio_response_date"),
+        "is_overdue": evaluated.get("is_overdue", False),
+        "days_remaining": evaluated.get("days_remaining", 0),
+        "days_overdue": evaluated.get("days_overdue", 0),
+        "time_remaining_seconds": evaluated.get("time_remaining_seconds", 0),
+        "section_20_penalty_inr": evaluated.get("section_20_penalty_inr", 0),
+        "appeal_eligible": evaluated.get("appeal_eligible", False),
+        "last_watchdog_check_at": evaluated.get("last_watchdog_check_at"),
+        "last_watchdog_event": evaluated.get("last_watchdog_event"),
+        "watchdog_events": evaluated.get("watchdog_events", []),
+        "notification_state": evaluated.get("notification_state", {}),
+        "pio_response_text": evaluated.get("pio_response_text", ""),
+        "exemption_cited": evaluated.get("exemption_cited", ""),
+        "legal_counter": evaluated.get("legal_counter", ""),
+        "precedent_title": evaluated.get("precedent_title", ""),
+        "first_appeal_draft": evaluated.get("first_appeal_draft", ""),
+        "department_info": evaluated.get("department_info", {}),
+        "form_data": evaluated.get("form_data", {}),
+        "user_problem": evaluated.get("user_problem", ""),
+        "data": evaluated
+    }
+
+@app.post("/api/watchdog/run")
+def run_watchdog_cron(request: Request):
+    cron_secret = os.environ.get("CRON_SECRET")
+    if cron_secret:
+        auth_header = request.headers.get("Authorization", "")
+        custom_header = request.headers.get("x-vercel-cron-secret", "")
+        if auth_header != f"Bearer {cron_secret}" and custom_header != cron_secret:
+            raise HTTPException(status_code=401, detail="Unauthorized: Invalid Cron Secret")
+            
+    result = run_scheduled_watchdog(case_manager)
+    return result
+
+@app.post("/api/watchdog/response")
+def record_watchdog_response_endpoint(payload: WatchdogResponseRequest):
+    clean_id = payload.case_id.strip().upper()
+    case = case_manager.get_case(clean_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case ID not found.")
+        
+    received_dt = payload.response_received_at or datetime.now(timezone.utc).isoformat()
+    case["response_received_at"] = received_dt
+    case["pio_response_date"] = received_dt
+    case["pio_response_text"] = payload.pio_text or ""
+    
+    # Analyze PIO response
+    analysis = analyze_pio_response(payload.pio_text or "")
+    case["exemption_cited"] = analysis.get("exemption_cited")
+    case["legal_counter"] = analysis.get("legal_counter")
+    case["precedent_title"] = analysis.get("precedent_title")
+    case["status"] = "pio_analyzed"
+    
+    # Generate first appeal draft
+    language = case.get("language", "English")
+    first_appeal_draft = outcome_engine.generate_first_appeal(case, analysis, language)
+    case["first_appeal_draft"] = first_appeal_draft
+    
+    # Re-evaluate watchdog state with response recorded
+    evaluated = evaluate_watchdog_state(case)
+    case_manager.update_case(clean_id, evaluated)
+    
+    return {
+        "status": "success",
+        "case_id": clean_id,
+        "analysis": analysis,
+        "watchdog_state": evaluated,
+        "first_appeal_draft": first_appeal_draft
+    }
+
+@app.post("/api/watchdog/simulate")
+def simulate_watchdog_scenario(payload: WatchdogSimulateRequest):
+    clean_id = payload.case_id.strip().upper()
+    case = case_manager.get_case(clean_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case ID not found.")
+        
+    now = datetime.now(timezone.utc)
+    scenario = payload.scenario.lower()
+    
+    if scenario == "today":
+        # Filed today (30 days remaining)
+        filing_dt = now
+        case["filing_date"] = filing_dt.isoformat()
+        case["response_due_date"] = (filing_dt + timedelta(days=30)).isoformat()
+        case["first_appeal_due_date"] = (filing_dt + timedelta(days=60)).isoformat()
+        case["response_received_at"] = None
+        case["pio_response_date"] = None
+        case["pio_response_text"] = None
+        case["status"] = "FILED"
+    elif scenario == "7_days":
+        # 23 days ago -> 7 days remaining
+        filing_dt = now - timedelta(days=23)
+        case["filing_date"] = filing_dt.isoformat()
+        case["response_due_date"] = (filing_dt + timedelta(days=30)).isoformat()
+        case["first_appeal_due_date"] = (filing_dt + timedelta(days=60)).isoformat()
+        case["response_received_at"] = None
+        case["pio_response_date"] = None
+        case["pio_response_text"] = None
+        case["status"] = "FILED"
+    elif scenario == "3_days":
+        # 27 days ago -> 3 days remaining
+        filing_dt = now - timedelta(days=27)
+        case["filing_date"] = filing_dt.isoformat()
+        case["response_due_date"] = (filing_dt + timedelta(days=30)).isoformat()
+        case["first_appeal_due_date"] = (filing_dt + timedelta(days=60)).isoformat()
+        case["response_received_at"] = None
+        case["pio_response_date"] = None
+        case["pio_response_text"] = None
+        case["status"] = "FILED"
+    elif scenario == "due_today":
+        # 30 days ago -> due today
+        filing_dt = now - timedelta(days=30)
+        case["filing_date"] = filing_dt.isoformat()
+        case["response_due_date"] = (filing_dt + timedelta(days=30)).isoformat()
+        case["first_appeal_due_date"] = (filing_dt + timedelta(days=60)).isoformat()
+        case["response_received_at"] = None
+        case["pio_response_date"] = None
+        case["pio_response_text"] = None
+        case["status"] = "FILED"
+    elif scenario == "overdue_10":
+        # 40 days ago -> 10 days overdue (₹2500 penalty)
+        filing_dt = now - timedelta(days=40)
+        case["filing_date"] = filing_dt.isoformat()
+        case["response_due_date"] = (filing_dt + timedelta(days=30)).isoformat()
+        case["first_appeal_due_date"] = (filing_dt + timedelta(days=60)).isoformat()
+        case["response_received_at"] = None
+        case["pio_response_date"] = None
+        case["pio_response_text"] = None
+        case["status"] = "FILED"
+    elif scenario == "overdue_100":
+        # 130 days ago -> 100 days overdue (₹25,000 max penalty)
+        filing_dt = now - timedelta(days=130)
+        case["filing_date"] = filing_dt.isoformat()
+        case["response_due_date"] = (filing_dt + timedelta(days=30)).isoformat()
+        case["first_appeal_due_date"] = (filing_dt + timedelta(days=60)).isoformat()
+        case["response_received_at"] = None
+        case["pio_response_date"] = None
+        case["pio_response_text"] = None
+        case["status"] = "FILED"
+    elif scenario == "response_ontime":
+        # Filed 20 days ago, response received yesterday (0 penalty)
+        filing_dt = now - timedelta(days=20)
+        case["filing_date"] = filing_dt.isoformat()
+        case["response_due_date"] = (filing_dt + timedelta(days=30)).isoformat()
+        case["first_appeal_due_date"] = (filing_dt + timedelta(days=60)).isoformat()
+        case["response_received_at"] = (now - timedelta(days=1)).isoformat()
+        case["pio_response_date"] = case["response_received_at"]
+        case["pio_response_text"] = "Information provided under Section 7(1)."
+        case["status"] = "RESPONSE_RECEIVED"
+    elif scenario == "response_late":
+        # Filed 45 days ago, response received 5 days ago (10 days overdue -> ₹2500 penalty)
+        filing_dt = now - timedelta(days=45)
+        case["filing_date"] = filing_dt.isoformat()
+        case["response_due_date"] = (filing_dt + timedelta(days=30)).isoformat()
+        case["first_appeal_due_date"] = (filing_dt + timedelta(days=60)).isoformat()
+        case["response_received_at"] = (now - timedelta(days=5)).isoformat()
+        case["pio_response_date"] = case["response_received_at"]
+        case["pio_response_text"] = "Belated response received from PIO."
+        case["status"] = "RESPONSE_RECEIVED"
+    elif scenario == "custom" and payload.simulated_days_ago is not None:
+        filing_dt = now - timedelta(days=payload.simulated_days_ago)
+        case["filing_date"] = filing_dt.isoformat()
+        case["response_due_date"] = (filing_dt + timedelta(days=30)).isoformat()
+        case["first_appeal_due_date"] = (filing_dt + timedelta(days=60)).isoformat()
+        case["response_received_at"] = None
+        case["pio_response_date"] = None
+        case["pio_response_text"] = None
+        case["status"] = "FILED"
+
+    # Reset notification flags so clean transition events populate for simulation
+    case["notification_state"] = {}
+    case["watchdog_events"] = []
+    
+    evaluated = evaluate_watchdog_state(case, now=now)
+    case_manager.update_case(clean_id, evaluated)
+    
+    return {
+        "status": "success",
+        "scenario": scenario,
+        "case_id": clean_id,
+        "evaluated_state": evaluated
+    }
+
 @app.get("/api/case/{case_id}")
 def get_case_state(case_id: str):
-    case_data = case_manager.get_case(case_id)
+    clean_id = case_id.strip().upper()
+    case_data = case_manager.get_case(clean_id)
     if not case_data:
         raise HTTPException(status_code=404, detail="Case ID not found.")
         
-    filing_date_str = case_data.get("filing_date")
-    if not filing_date_str:
-        filing_date_obj = datetime.now(timezone.utc) - timedelta(days=35) 
-        filing_date_str = filing_date_obj.isoformat()
-    else:
-        try:
-            filing_date_obj = datetime.fromisoformat(filing_date_str.replace("Z", "+00:00"))
-        except ValueError:
-            filing_date_obj = datetime.now(timezone.utc) - timedelta(days=35)
-
-    response_due_date_obj = filing_date_obj + timedelta(days=30)
-    first_appeal_due_date_obj = filing_date_obj + timedelta(days=60)
-    now = datetime.now(timezone.utc)
-    
-    is_overdue = now > response_due_date_obj
-    diff_time = now - response_due_date_obj
-    days_overdue = diff_time.days if is_overdue and diff_time.days > 0 else 0
-    
-    section_20_penalty = min(25000, days_overdue * 250)
-    time_remaining_seconds = max(0, int((response_due_date_obj - now).total_seconds()))
-
-    computed_status = case_data.get("status", "ACTIVE")
-    if computed_status in ["classified", "initialized", "FILED"] and is_overdue:
-        computed_status = "DEEMED_REFUSAL"
+    evaluated = evaluate_watchdog_state(case_data)
+    case_manager.update_case(clean_id, evaluated)
 
     response_payload = {
-        "case_id": case_id,
-        "computed_status": computed_status,
-        "is_overdue": is_overdue,
-        "days_overdue": days_overdue,
-        "section_20_penalty_inr": section_20_penalty,
-        "filing_date": filing_date_str,
-        "response_due_date": response_due_date_obj.isoformat(),
-        "first_appeal_due_date": first_appeal_due_date_obj.isoformat(),
-        "time_remaining_seconds": time_remaining_seconds,
-        "pio_response_text": case_data.get("pio_response_text", ""),
-        "exemption_cited": case_data.get("exemption_cited", ""),
-        "legal_counter": case_data.get("legal_counter", ""),
-        "precedent_title": case_data.get("precedent_title", ""),
-        "first_appeal_draft": case_data.get("first_appeal_draft", ""),
-        "data": case_data 
+        "case_id": clean_id,
+        "watchdog_enabled": evaluated.get("watchdog_enabled", True),
+        "watchdog_status": evaluated.get("watchdog_status", "ACTIVE"),
+        "computed_status": evaluated.get("computed_status", "ACTIVE"),
+        "is_overdue": evaluated.get("is_overdue", False),
+        "days_overdue": evaluated.get("days_overdue", 0),
+        "days_remaining": evaluated.get("days_remaining", 0),
+        "section_20_penalty_inr": evaluated.get("section_20_penalty_inr", 0),
+        "filing_date": evaluated.get("filing_date"),
+        "response_due_date": evaluated.get("response_due_date"),
+        "first_appeal_due_date": evaluated.get("first_appeal_due_date"),
+        "time_remaining_seconds": evaluated.get("time_remaining_seconds", 0),
+        "appeal_eligible": evaluated.get("appeal_eligible", False),
+        "last_watchdog_check_at": evaluated.get("last_watchdog_check_at"),
+        "last_watchdog_event": evaluated.get("last_watchdog_event"),
+        "watchdog_events": evaluated.get("watchdog_events", []),
+        "notification_state": evaluated.get("notification_state", {}),
+        "pio_response_text": evaluated.get("pio_response_text", ""),
+        "exemption_cited": evaluated.get("exemption_cited", ""),
+        "legal_counter": evaluated.get("legal_counter", ""),
+        "precedent_title": evaluated.get("precedent_title", ""),
+        "first_appeal_draft": evaluated.get("first_appeal_draft", ""),
+        "department_info": evaluated.get("department_info", {}),
+        "form_data": evaluated.get("form_data", {}),
+        "user_problem": evaluated.get("user_problem", ""),
+        "data": evaluated 
     }
 
     return response_payload

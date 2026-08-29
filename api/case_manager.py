@@ -2,8 +2,8 @@ import os
 import random
 import string
 import logging
-from datetime import datetime, timezone
-from typing import Dict, Any, Optional
+from datetime import datetime, timezone, timedelta
+from typing import Dict, Any, Optional, List
 
 try:
     from supabase import create_client, Client
@@ -36,13 +36,49 @@ class CaseManager:
 
     def create_case(self, life_liberty: bool = False) -> str:
         case_id = self._generate_case_id()
-        now_iso = datetime.now(timezone.utc).isoformat()
+        now_dt = datetime.now(timezone.utc)
+        now_iso = now_dt.isoformat()
+        
+        # Statutory 30-day (or 48-hour) initial deadlines
+        if life_liberty:
+            due_dt = now_dt + timedelta(hours=48)
+        else:
+            due_dt = now_dt + timedelta(days=30)
+        first_appeal_due_dt = due_dt + timedelta(days=30)
+
         initial_data = {
             "id": case_id,
             "status": "FILED",
             "filing_date": now_iso,
+            "response_due_date": due_dt.isoformat(),
+            "first_appeal_due_date": first_appeal_due_dt.isoformat(),
             "life_liberty_flag": life_liberty,
+            "watchdog_enabled": True,
+            "watchdog_status": "ACTIVE",
+            "watchdog_started_at": now_iso,
+            "watchdog_events": [
+                {
+                    "type": "WATCHDOG_STARTED",
+                    "timestamp": now_iso,
+                    "metadata": {
+                        "filing_date": now_iso,
+                        "response_due_date": due_dt.isoformat(),
+                        "note": "JanAdhikar statutory RTI watchdog activated."
+                    }
+                }
+            ],
+            "notification_state": {
+                "started_sent": True,
+                "seven_day_warning_sent": False,
+                "three_day_warning_sent": False,
+                "due_today_sent": False,
+                "overdue_sent": False,
+                "deemed_refusal_sent": False,
+                "appeal_ready_sent": False,
+                "response_received_sent": False
+            },
             "pio_response_date": None,
+            "response_received_at": None,
             "first_appeal_date": None,
             "first_appeal_decision_date": None,
         }
@@ -76,6 +112,35 @@ class CaseManager:
 
         return self._memory_cases.get(clean_id)
 
+    def list_active_cases(self) -> List[Dict[str, Any]]:
+        """
+        Retrieves active cases where watchdog is active (status not CLOSED).
+        """
+        active_cases: List[Dict[str, Any]] = []
+
+        if self.use_supabase:
+            try:
+                # Query all cases and filter in python to support heterogeneous schema data
+                response = self.supabase.table("cases").select("id, data").execute()
+                if response.data:
+                    for row in response.data:
+                        case_data = row.get("data", {})
+                        if isinstance(case_data, dict):
+                            case_id = row.get("id") or case_data.get("id")
+                            if case_id:
+                                case_data["id"] = case_id
+                            if case_data.get("status") != "CLOSED" and case_data.get("watchdog_enabled", True):
+                                active_cases.append(case_data)
+            except Exception as e:
+                logger.error(f"Supabase list_active_cases Error: {e}")
+        else:
+            for case_id, case_data in self._memory_cases.items():
+                if case_data.get("status") != "CLOSED" and case_data.get("watchdog_enabled", True):
+                    case_data["id"] = case_id
+                    active_cases.append(case_data)
+
+        return active_cases
+
     def update_case(self, case_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
         if not case_id:
             return {}
@@ -87,6 +152,7 @@ class CaseManager:
             current_data = {"id": clean_id, "filing_date": datetime.now(timezone.utc).isoformat()}
 
         current_data.update(updates)
+        current_data["id"] = clean_id
 
         if self.use_supabase:
             try:

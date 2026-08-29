@@ -13,10 +13,13 @@ import {
   Activity,
   ArrowLeft,
   Globe,
-  Clock
+  Clock,
+  ShieldCheck,
+  Copy,
+  Check
 } from "lucide-react";
 import DraftViewer from '@/components/dashboard/DraftViewer';
-import { rtiPredict, rtiImprove, getCase } from '@/lib/api';
+import { rtiPredict, rtiImprove, getCase, startWatchdog } from '@/lib/api';
 import { useRouter, useSearchParams } from 'next/navigation';
 import useCaseStore from '@/store/caseStore';
 
@@ -83,6 +86,8 @@ export default function RTIResultView({ initialDepartment }: RTIResultViewProps)
   const [loadingPred, setLoadingPred] = useState(false);
   const [loadingImprove, setLoadingImprove] = useState(false);
   const [improvedDraft, setImprovedDraft] = useState<string | null>(null);
+  const [copiedPasskey, setCopiedPasskey] = useState(false);
+  const [watchdogActive, setWatchdogActive] = useState(true);
 
   // Auto-fetch case from backend if store state is empty
   useEffect(() => {
@@ -106,6 +111,13 @@ export default function RTIResultView({ initialDepartment }: RTIResultViewProps)
     };
     loadCaseIfNeeded();
   }, [caseId, rtiDraft, hydrateState, setRtiDraft]);
+
+  // Activate watchdog automatically when case is created/viewed
+  useEffect(() => {
+    if (caseId) {
+      startWatchdog(caseId).catch((err) => console.log('Watchdog startup check:', err));
+    }
+  }, [caseId]);
 
   useEffect(() => {
     const fetchPred = async () => {
@@ -134,11 +146,20 @@ export default function RTIResultView({ initialDepartment }: RTIResultViewProps)
         setRtiDraft(res.improved_draft || res.draft_text);
       }
       setSubStep(2);
+      // Ensure watchdog is initialized
+      await startWatchdog(caseId);
     } catch (err) {
       console.error('Improvement failed:', err);
     } finally {
       setLoadingImprove(false);
     }
+  };
+
+  const handleCopyPasskey = () => {
+    if (!caseId) return;
+    navigator.clipboard.writeText(caseId);
+    setCopiedPasskey(true);
+    setTimeout(() => setCopiedPasskey(false), 2000);
   };
 
   const detectedRisks = Array.isArray(prediction?.detected_risks) ? prediction.detected_risks : [];
@@ -312,9 +333,69 @@ export default function RTIResultView({ initialDepartment }: RTIResultViewProps)
             <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-2 tracking-tight drop-shadow-md">
               Statutory RTI Application Ready
             </h1>
-            <p className="text-slate-200 mb-8 font-medium drop-shadow-sm">
+            <p className="text-slate-200 mb-6 font-medium drop-shadow-sm">
               Your application has been polished to withstand statutory rejections. Download the official PDF or copy the text.
             </p>
+
+            {/* SLA WATCHDOG ACTIVATED PROMINENT CARD */}
+            <div className="mb-6 bg-gradient-to-r from-emerald-950/90 to-ashoka-navy/95 border-2 border-emerald-500/40 rounded-3xl p-6 sm:p-8 text-white shadow-2xl backdrop-blur-md relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+              
+              <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-3 w-3 relative">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                    </span>
+                    <span className="text-xs font-mono font-black uppercase tracking-widest text-emerald-300 bg-emerald-950/80 px-3 py-1 rounded-full border border-emerald-400/30">
+                      🛡️ AUTOMATIC RTI SLA WATCHDOG ACTIVATED
+                    </span>
+                  </div>
+
+                  <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+                    JanAdhikar is now watching this case.
+                  </h3>
+
+                  <p className="text-xs sm:text-sm text-emerald-100/90 font-medium max-w-xl leading-relaxed">
+                    You do not need to remember dates. JanAdhikar's serverless watchdog tracks your 30-day statutory deadline under Section 7(1), monitors Section 20 penalty exposure (₹250/day), and prepares First Appeals automatically if the PIO defaults.
+                  </p>
+
+                  <div className="flex flex-wrap items-center gap-3 pt-1">
+                    <div className="bg-black/40 border border-emerald-500/40 px-4 py-2 rounded-xl flex items-center gap-3">
+                      <span className="text-[11px] uppercase font-bold text-emerald-300 tracking-wider">Case Passkey:</span>
+                      <span className="font-mono font-black text-amber-300 tracking-widest text-sm">{caseId}</span>
+                      <button
+                        type="button"
+                        onClick={handleCopyPasskey}
+                        className="text-slate-300 hover:text-white transition cursor-pointer p-1"
+                        title="Copy Passkey"
+                      >
+                        {copiedPasskey ? <Check size={15} className="text-emerald-400" /> : <Copy size={15} />}
+                      </button>
+                    </div>
+                    {copiedPasskey && (
+                      <span className="text-xs text-emerald-400 font-bold animate-in fade-in">Copied to clipboard!</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="shrink-0 flex flex-col sm:flex-row md:flex-col gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const currentCaseId = caseId;
+                      router.push(`/track?case_id=${currentCaseId}`);
+                    }}
+                    className="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-sm transition-all shadow-lg hover:shadow-emerald-500/25 cursor-pointer tracking-tight"
+                  >
+                    <Activity size={18} className="text-slate-950" />
+                    <span>Track Case Down</span>
+                    <ArrowRight size={18} />
+                  </button>
+                </div>
+              </div>
+            </div>
 
             <div className="space-y-6">
               <DraftViewer caseId={caseId} draft={improvedDraft || rtiDraft || ''} title="RTI Application (Section 6(1))"/>
@@ -392,7 +473,7 @@ export default function RTIResultView({ initialDepartment }: RTIResultViewProps)
                   className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-ashoka-navy hover:bg-[#1E293B] text-white font-bold text-sm transition-all shadow-md cursor-pointer w-full sm:w-auto tracking-tight font-sans"
                 >
                   <Activity className="text-emerald-400" size={16}/>
-                  <span>Track SLA & Appeals</span>
+                  <span>Track Case Down (SLA Watchdog)</span>
                   <ArrowRight size={16}/>
                 </button>
               </div>

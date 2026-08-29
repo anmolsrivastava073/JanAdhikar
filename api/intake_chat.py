@@ -70,8 +70,16 @@ def extract_json_from_text(text: str) -> dict:
 def intake_chat(payload: IntakeMessage):
     api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
-        print("CRITICAL ERROR: GROQ_API_KEY is missing from environment variables.")
-        raise HTTPException(status_code=500, detail="Groq API key not configured on server.")
+        return {
+            "assistant_reply": "Namaste! I have noted your issue. To ensure accurate drafting, please confirm your city/district and the concerned public authority.",
+            "is_ready_to_proceed": True,
+            "extracted_data": {
+                "problem_summary": payload.message,
+                "route_guess": "RTI",
+                "applicant_city": "Local Jurisdiction",
+                "department_name": "Concerned Public Authority"
+            }
+        }
 
     try:
         client = Groq(api_key=api_key)

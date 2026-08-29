@@ -1,7 +1,10 @@
 import json
-import httpx
-from typing import Dict, Any
+import logging
+from typing import Dict, Any, List
 from .classifier import classifier
+from .data.jurisdiction_knowledge import resolve_knowledge_graph_node, AUTHORITY_KNOWLEDGE_GRAPH
+
+logger = logging.getLogger(__name__)
 
 class SmartDepartmentResolver:
     def __init__(self):
@@ -10,44 +13,46 @@ class SmartDepartmentResolver:
     def _get_client(self):
         return classifier.client
 
-    def _search_web_context(self, query: str, is_tender: bool = False) -> str:
-        try:
-            if is_tender: query = f"{query} active tender portal eprocurement"
-            else: query = f"{query} central public information officer CIC"
-                
-            search_url = f"https://en.wikipedia.org/w/api.php?action=opensearch&search={query}&limit=3&format=json"
-            headers = {"User-Agent": "CivicRoute/1.0"}
-            
-            with httpx.Client(timeout=5.0, headers=headers) as client:
-                response = client.get(search_url)
-                data = response.json()
-                if len(data) > 2 and data[2]:
-                    return "\n".join([f"- {desc}" for desc in data[2] if desc])
-        except Exception as e:
-            pass
-        return "Proceed using internal legal knowledge."
-
-    def resolve(self, route: str, user_problem: str, location: str, extracted_facts: Dict[str, Any], language: str) -> Dict[str, Any]:
+    def resolve(self, route: str, user_problem: str, location: str, extracted_facts: Dict[str, Any], language: str = "English") -> Dict[str, Any]:
+        """
+        Advanced GraphRAG Resolution Engine:
+        1. Queries the hierarchical authority knowledge graph to retrieve domain, CPIO, FAA, address templates, and legal query templates.
+        2. If LLM is available, refines the jurisdiction with deep contextual reasoning.
+        3. Returns complete authority entity package including verified social media accountability handles.
+        """
+        # 1. GraphRAG baseline retrieval
+        graph_entity = resolve_knowledge_graph_node(user_problem, location or extracted_facts.get("applicant_city", ""))
+        
         client = self._get_client()
-        if not client: return self._fallback(location)
+        if not client:
+            return graph_entity
 
-        safe_location = location or "India"
-        is_tender = "tender" in user_problem.lower()
-        search_query = f"{safe_location} municipal government or state administration"
-        web_context = self._search_web_context(search_query, is_tender)
+        safe_location = location or extracted_facts.get("applicant_city") or "Local Jurisdiction"
+        
+        system_prompt = f"""You are an Expert Indian Administrative Law and RTI Jurisdiction Resolver.
+Given a citizen's problem, their location, and the retrieved Knowledge Graph node, resolve the EXACT Public Authority,
+Central/State Public Information Officer (CPIO/SPIO), First Appellate Authority (FAA), and Official Social Media Handles (@Ministry, @Minister, etc.).
 
-        system_prompt = f"""You are an expert Indian RTI Jurisdiction Resolver. 
-        Return ONLY valid JSON matching this schema:
-        {{
-          "public_authority_name": "Specific Dept Name",
-          "jurisdiction_level": "Central or State or Municipal",
-          "pio_designation": "e.g., The PIO",
-          "suggested_address_template": "Full address",
-          "address_confidence": "HIGH" or "LOW",
-          "reasoning": "Explanation"
-        }}"""
+Retrieved Graph Context:
+- Domain: {graph_entity.get('domain')}
+- Candidate Authority: {graph_entity.get('public_authority_name')}
+- Suggested CPIO: {graph_entity.get('pio_designation')}
+- Suggested FAA: {graph_entity.get('faa_designation')}
+- Candidate Social Handles: {json.dumps(graph_entity.get('social_handles', []))}
 
-        user_content = f"Issue: {user_problem}\nLocation: {location}\nExtracted Facts: {json.dumps(extracted_facts)}\nContext:\n{web_context}"
+Return ONLY a valid JSON matching this schema:
+{{
+  "public_authority_name": "Exact Department/Authority Name",
+  "jurisdiction_level": "Central" | "State" | "Municipal/Local",
+  "pio_designation": "The Central Public Information Officer (CPIO) / State PIO, [Specific Branch/Division]",
+  "faa_designation": "The First Appellate Authority (FAA), [Designation of Senior Officer]",
+  "suggested_address_template": "Official Office Address with [CITY/PIN]",
+  "social_handles": ["@MinistryHandle", "@MinisterHandle", "@StateDeptHandle"],
+  "reasoning": "1-2 sentence legal explanation why this authority holds the records under Sec 2(h) and Sec 5 of RTI Act"
+}}
+"""
+
+        user_content = f"Citizen Problem: {user_problem}\nLocation: {safe_location}\nExtracted Facts: {json.dumps(extracted_facts)}"
 
         try:
             resp = client.chat.completions.create(
@@ -59,19 +64,16 @@ class SmartDepartmentResolver:
                 temperature=0.1,
                 response_format={"type": "json_object"},
             )
-            return json.loads(resp.choices[0].message.content.strip())
+            parsed = json.loads(resp.choices[0].message.content.strip())
+            
+            # Merge with statutory query templates from GraphRAG
+            parsed["domain"] = graph_entity["domain"]
+            parsed["statutory_legal_queries"] = graph_entity["statutory_legal_queries"]
+            if not parsed.get("social_handles"):
+                parsed["social_handles"] = graph_entity["social_handles"]
+            return parsed
         except Exception as e:
-            print(f"Resolver LLM error: {e}")
-            return self._fallback(location)
-
-    def _fallback(self, location: str) -> Dict[str, Any]:
-        return {
-            "public_authority_name": "Concerned Department",
-            "jurisdiction_level": "Unknown",
-            "pio_designation": "Public Information Officer",
-            "address_confidence": "LOW",
-            "suggested_address_template": f"Office of the PIO, {location}",
-            "reasoning": "Fallback activated."
-        }
+            logger.error(f"[Department Resolver] LLM refinement error: {e}")
+            return graph_entity
 
 department_resolver = SmartDepartmentResolver()

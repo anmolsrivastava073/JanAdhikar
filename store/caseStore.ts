@@ -26,6 +26,8 @@ interface CaseState {
   setRtiDraft: (rtiDraft: string | null) => void;
   grievanceResult: any;
   setGrievanceResult: (grievanceResult: any) => void;
+  watchdogState: any;
+  setWatchdogState: (watchdogState: any) => void;
   error: string | null;
   setError: (error: string | null) => void;
   isLoading: boolean;
@@ -63,6 +65,10 @@ const useCaseStore = create<CaseState>()(
       setRtiDraft: (rtiDraft) => set({ rtiDraft }),
       grievanceResult: null,
       setGrievanceResult: (grievanceResult) => set({ grievanceResult }),
+      watchdogState: null,
+      setWatchdogState: (watchdogState) => set({ watchdogState }),
+      socialCampaign: null,
+      setSocialCampaign: (socialCampaign: any) => set({ socialCampaign }),
       error: null,
       setError: (error) => set({ error }),
       isLoading: false,
@@ -99,6 +105,7 @@ const useCaseStore = create<CaseState>()(
           rtiPrediction: backendData.prediction_result || null,
           rtiDraft: backendData.improved_draft || backendData.initial_draft || null,
           grievanceResult: backendData.grievance_pack || null,
+          watchdogState: backendData.watchdog_status ? backendData : state.watchdogState,
           stage: newStage !== 'IDLE' ? newStage : state.stage,
         }));
       },
@@ -116,6 +123,8 @@ const useCaseStore = create<CaseState>()(
           rtiPrediction: null,
           rtiDraft: null,
           grievanceResult: null,
+          watchdogState: null,
+          socialCampaign: null,
           error: null,
           isLoading: false,
         }),
