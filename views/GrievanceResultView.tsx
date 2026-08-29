@@ -1,10 +1,10 @@
 'use client';
-import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { Scale, ArrowRight, ArrowLeft, ShieldAlert, CheckCircle2, Globe, ExternalLink, AlertCircle, FileText, Landmark, Clock, BookOpen, Download, Copy, Printer, Check, RefreshCw, Activity } from 'lucide-react'
-import { useRouter } from 'next/navigation'
-import useCaseStore from '@/store/caseStore'
-import DraftViewer from '@/components/dashboard/DraftViewer'
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Scale, ArrowRight, ArrowLeft, ShieldAlert, CheckCircle2, Globe, ExternalLink, AlertCircle, FileText, Landmark, Clock, BookOpen, Download, Copy, Printer, Check, RefreshCw, Activity } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import useCaseStore from '@/store/caseStore';
+import DraftViewer from '@/components/dashboard/DraftViewer';
 
 const getTwitterHandle = (dept: string) => {
   const d = (dept || '').toLowerCase();
@@ -16,83 +16,40 @@ const getTwitterHandle = (dept: string) => {
   if (d.includes('railway') || d.includes('train')) return '@RailMinIndia @AshwiniVaishnaw';
   if (d.includes('bank') || d.includes('sbi') || d.includes('refund')) return '@FinMinIndia @RBI';
   return '@CPGRAMS @PMOIndia';
-}
+};
 
-// Words that look awkward if left dangling at the end of a truncated tweet.
-const TRAILING_STOPWORDS = new Set([
-  'a', 'an', 'the', 'and', 'or', 'but', 'of', 'to', 'in', 'on', 'at', 'for',
-  'with', 'from', 'by', 'as', 'is', 'are', 'was', 'were', 'be', 'that',
-  'which', 'this', 'these', 'those', 'it', 'its', 'about', 'into', 'onto'
-]);
-
-/**
- * Builds a tweet that is GUARANTEED to be <= 280 characters and never ends
- * mid-thought or on a dangling conjunction/preposition. If the citizen's
- * problem text has to be cut, an ellipsis (…) is appended so it's obvious
- * the text was trimmed rather than looking broken/incomplete.
- */
 const buildOptimalTweet = (dept: string, city: string, problem: string): string => {
   const handles = getTwitterHandle(dept);
   const locationTag = city ? `in ${city}` : '';
   
-  // Avoid using # or & inside the template string to prevent URL intent truncation bugs
   const prefix = `🚨 ${handles} Urgent civic issue ${locationTag}: `;
   const suffix = `\n\nNeeds immediate resolution by authorities. Please help!`;
 
-  const TOTAL_BUDGET = 280;
-  const ELLIPSIS = '…';
-
+  const totalBudget = 280;
   const fixedLength = prefix.length + suffix.length;
-  const availableFull = TOTAL_BUDGET - fixedLength;
+  const availableLength = totalBudget - fixedLength;
 
   let cleanProblem = (problem || '').trim().replace(/\s+/g, ' ');
 
-  // Fits without any truncation at all.
-  if (cleanProblem.length <= availableFull) {
+  if (cleanProblem.length <= availableLength) {
     return `${prefix}${cleanProblem}${suffix}`;
   }
 
-  // Reserve room for the ellipsis so the final string never exceeds budget.
-  const availableLength = Math.max(0, availableFull - ELLIPSIS.length);
-  let truncated = cleanProblem.substring(0, availableLength);
-
-  // Cut back to the last full word boundary — never chop a word in half.
+  const truncated = cleanProblem.substring(0, availableLength);
   const lastSpace = truncated.lastIndexOf(' ');
-  if (lastSpace > 0) {
-    truncated = truncated.substring(0, lastSpace);
-  }
+  const finalProblem = lastSpace > 0 ? truncated.substring(0, lastSpace) : truncated;
 
-  // Strip trailing punctuation left over from the cut.
-  truncated = truncated.replace(/[,;:\-–—.]+$/, '').trim();
-
-  // Strip dangling stopwords/conjunctions/prepositions so the trimmed text
-  // reads as a clean clause, not a sentence cut off awkwardly mid-thought.
-  let words = truncated.split(' ');
-  while (words.length > 1 && TRAILING_STOPWORDS.has(words[words.length - 1].toLowerCase())) {
-    words.pop();
-  }
-  truncated = words.join(' ').replace(/[,;:\-–—.]+$/, '').trim();
-
-  const finalTweet = `${prefix}${truncated}${ELLIPSIS}${suffix}`;
-
-  // Absolute safety net — should never trigger given the math above, but
-  // guarantees we never ship something over the hard 280 char limit.
-  if (finalTweet.length > TOTAL_BUDGET) {
-    const overBy = finalTweet.length - TOTAL_BUDGET;
-    return `${prefix}${truncated.substring(0, Math.max(0, truncated.length - overBy))}${ELLIPSIS}${suffix}`;
-  }
-
-  return finalTweet;
-}
+  return `${prefix}${finalProblem}${suffix}`;
+};
 
 export default function GrievanceResultView() {
-  const router = useRouter()
-  const { caseId, userProblem, formData, grievanceResult, setGrievanceResult, setStage, reset } = useCaseStore()
-  const [subStep, setSubStep] = useState(1)
+  const router = useRouter();
+  const { caseId, userProblem, formData, grievanceResult, setGrievanceResult, setStage, reset } = useCaseStore();
+  const [subStep, setSubStep] = useState(1);
 
-  const defaultProblem = userProblem || "Unlawful withholding of security deposit / consumer deficiency of service"
-  const applicantName = formData?.applicant_name || "Applicant"
-  const applicantCity = formData?.applicant_city || "Local Jurisdiction"
+  const defaultProblem = userProblem || "Unlawful withholding of security deposit / consumer deficiency of service";
+  const applicantName = formData?.applicant_name || "Applicant";
+  const applicantCity = formData?.applicant_city || "Local Jurisdiction";
 
   const tweetText = buildOptimalTweet(formData?.target_department, applicantCity, defaultProblem);
   const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
@@ -155,7 +112,7 @@ ${applicantName}
 (Complainant / Aggrieved Party)`,
         pecuniary_jurisdiction: null,
         statute_of_limitations: null,
-      }
+      };
 
   const {
     violated_rights = [],
@@ -166,7 +123,7 @@ ${applicantName}
     demand_notice_draft = '',
     pecuniary_jurisdiction = null,
     statute_of_limitations = null,
-  } = activeResult
+  } = activeResult;
 
   return (
     <div 
@@ -277,7 +234,7 @@ ${applicantName}
                       <p className="text-xs text-slate-600 mt-0.5 font-medium">Recommended statutory appellate authority & online filing portal</p>
                     </div>
                     {target_portal_url && (
-                      
+                      <a
                         href={target_portal_url}
                         target="_blank"
                         rel="noreferrer"
@@ -357,7 +314,7 @@ ${applicantName}
                       Public visibility accelerates administrative action. Generate a pre-filled Twitter/X post tagging relevant authorities based on your grievance.
                     </p>
                   </div>
-                  
+                  <a
                     href={tweetUrl}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -400,5 +357,5 @@ ${applicantName}
 
       </motion.div>
     </div>
-  )
+  );
 }
