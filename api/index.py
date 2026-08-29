@@ -538,7 +538,7 @@ def get_watchdog_case(case_id: str):
         "data": evaluated
     }
 
-@app.post("/api/watchdog/run")
+@app.api_route("/api/watchdog/run", methods=["GET", "POST"])
 def run_watchdog_cron(request: Request):
     cron_secret = os.environ.get("CRON_SECRET")
     if cron_secret:
