@@ -121,6 +121,25 @@ function resolvePecuniaryJurisdictionClient(amountRaw?: string) {
   return { amount, forum };
 }
 
+const DEFAULT_FORM_VALUES: Record<string, string> = {
+  applicant_name: '',
+  applicant_contact: '',
+  applicant_city: '',
+  applicant_state: '',
+  applicant_address: '',
+  applicant_pincode: '',
+  target_department: '',
+  specific_records: '',
+  time_period: '',
+  file_or_work_no: '',
+  incident_date: '',
+  financial_loss: '',
+  evidence_available: '',
+  desired_relief: '',
+  statutory_fee: '',
+  response_time: '',
+};
+
 export default function IntakeFormView() {
   const router = useRouter();
   const { 
@@ -131,7 +150,7 @@ export default function IntakeFormView() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [currentStep, setCurrentStep] = useState<0 | 1 | 2 | 3>(0);
-  const [localForm, setLocalForm] = useState<Record<string, any>>({});
+  const [localForm, setLocalForm] = useState<Record<string, any>>(DEFAULT_FORM_VALUES);
 
   useEffect(() => {
     const analyzeAndPreFill = async () => {
@@ -146,22 +165,9 @@ export default function IntakeFormView() {
 
         const aiExtracted = res.extracted_data || {};
         setLocalForm({
-          applicant_name: formData.applicant_name || aiExtracted.applicant_name || '',
-          applicant_contact: formData.applicant_contact || aiExtracted.applicant_contact || '',
-          applicant_city: formData.applicant_city || aiExtracted.applicant_city || '',
-          applicant_state: formData.applicant_state || aiExtracted.applicant_state || '',
-          applicant_address: formData.applicant_address || aiExtracted.applicant_address || '',
-          applicant_pincode: formData.applicant_pincode || aiExtracted.applicant_pincode || '',
-          target_department: formData.target_department || aiExtracted.target_department || '',
-          specific_records: formData.specific_records || aiExtracted.specific_records || '',
-          time_period: formData.time_period || aiExtracted.time_period || '',
-          file_or_work_no: formData.file_or_work_no || aiExtracted.file_or_work_no || '',
-          incident_date: formData.incident_date || aiExtracted.incident_date || '',
-          financial_loss: formData.financial_loss || aiExtracted.financial_loss || '',
-          evidence_available: formData.evidence_available || aiExtracted.evidence_available || '',
-          desired_relief: formData.desired_relief || aiExtracted.desired_relief || '',
-          statutory_fee: formData.statutory_fee || aiExtracted.statutory_fee || '',
-          response_time: formData.response_time || aiExtracted.response_time || '',
+          ...DEFAULT_FORM_VALUES,
+          ...(formData || {}),
+          ...aiExtracted,
         });
       } catch (err) {
         console.error(err);
@@ -175,7 +181,10 @@ export default function IntakeFormView() {
     if (!classifyResult) {
       analyzeAndPreFill();
     } else {
-      setLocalForm(formData);
+      setLocalForm({
+        ...DEFAULT_FORM_VALUES,
+        ...(formData || {}),
+      });
       setLoading(false);
     }
   }, [userProblem, caseId, language, classifyResult, formData, router, setClassifyResult, setStage]);
@@ -376,7 +385,7 @@ export default function IntakeFormView() {
                   <input
                     type="text"
                     required
-                    value={localForm.applicant_name}
+                    value={localForm.applicant_name ?? ''}
                     onChange={e => handleChange('applicant_name', e.target.value)}
                     placeholder="e.g. Rohan Sharma"
                     className="w-full bg-[#FAF8F5] border border-slate-300 rounded-xl p-3.5 text-ashoka-navy placeholder-slate-400 focus:outline-none focus:border-[#FF9933] focus:ring-1 focus:ring-[#FF9933] text-sm font-medium transition-all"
@@ -388,7 +397,7 @@ export default function IntakeFormView() {
                   <input
                     type="text"
                     required
-                    value={localForm.applicant_contact}
+                    value={localForm.applicant_contact ?? ''}
                     onChange={e => handleChange('applicant_contact', e.target.value)}
                     placeholder="e.g. 9876543210 / rohan@email.com"
                     className="w-full bg-[#FAF8F5] border border-slate-300 rounded-xl p-3.5 text-ashoka-navy placeholder-slate-400 focus:outline-none focus:border-[#FF9933] focus:ring-1 focus:ring-[#FF9933] text-sm font-medium transition-all"
@@ -400,7 +409,7 @@ export default function IntakeFormView() {
                   <input
                     type="text"
                     required
-                    value={localForm.applicant_city}
+                    value={localForm.applicant_city ?? ''}
                     onChange={e => handleChange('applicant_city', e.target.value)}
                     placeholder="e.g. Jaipur"
                     className="w-full bg-[#FAF8F5] border border-slate-300 rounded-xl p-3.5 text-ashoka-navy placeholder-slate-400 focus:outline-none focus:border-[#FF9933] focus:ring-1 focus:ring-[#FF9933] text-sm font-medium transition-all"
@@ -412,7 +421,7 @@ export default function IntakeFormView() {
                   <input
                     type="text"
                     required
-                    value={localForm.applicant_state}
+                    value={localForm.applicant_state ?? ''}
                     onChange={e => handleChange('applicant_state', e.target.value)}
                     placeholder="e.g. Rajasthan"
                     className="w-full bg-[#FAF8F5] border border-slate-300 rounded-xl p-3.5 text-ashoka-navy placeholder-slate-400 focus:outline-none focus:border-[#FF9933] focus:ring-1 focus:ring-[#FF9933] text-sm font-medium transition-all"
@@ -424,7 +433,7 @@ export default function IntakeFormView() {
                   <input
                     type="text"
                     required
-                    value={localForm.applicant_address}
+                    value={localForm.applicant_address ?? ''}
                     onChange={e => handleChange('applicant_address', e.target.value)}
                     placeholder="e.g. House No. 42, Sector 3, Main Road"
                     className="w-full bg-[#FAF8F5] border border-slate-300 rounded-xl p-3.5 text-ashoka-navy placeholder-slate-400 focus:outline-none focus:border-[#FF9933] focus:ring-1 focus:ring-[#FF9933] text-sm font-medium transition-all"
@@ -436,7 +445,7 @@ export default function IntakeFormView() {
                   <input
                     type="text"
                     required
-                    value={localForm.applicant_pincode}
+                    value={localForm.applicant_pincode ?? ''}
                     onChange={e => handleChange('applicant_pincode', e.target.value)}
                     placeholder="e.g. 302001"
                     className="w-full bg-[#FAF8F5] border border-slate-300 rounded-xl p-3.5 text-ashoka-navy placeholder-slate-400 focus:outline-none focus:border-[#FF9933] focus:ring-1 focus:ring-[#FF9933] text-sm font-medium transition-all"
@@ -447,7 +456,7 @@ export default function IntakeFormView() {
                   <label className="text-xs font-bold text-ashoka-navy uppercase tracking-wide">Evidence / Reference on Record (Optional)</label>
                   <input
                     type="text"
-                    value={localForm.evidence_available}
+                    value={localForm.evidence_available ?? ''}
                     onChange={e => handleChange('evidence_available', e.target.value)}
                     placeholder="e.g. Receipt no. 4521, screenshot of chat, application ref no."
                     className="w-full bg-[#FAF8F5] border border-slate-300 rounded-xl p-3.5 text-ashoka-navy placeholder-slate-400 focus:outline-none focus:border-[#FF9933] focus:ring-1 focus:ring-[#FF9933] text-sm font-medium transition-all"
@@ -499,7 +508,7 @@ export default function IntakeFormView() {
                     <label className="text-xs font-bold text-ashoka-navy uppercase tracking-wide">Target Public Authority / Department</label>
                     <input
                       type="text"
-                      value={localForm.target_department}
+                      value={localForm.target_department ?? ''}
                       onChange={e => handleChange('target_department', e.target.value)}
                       placeholder="e.g., Public Works Department / Unsure"
                       className="w-full bg-[#FAF8F5] border border-slate-300 rounded-xl p-3.5 text-court-maroon placeholder-slate-400 focus:outline-none focus:border-[#FF9933] focus:ring-1 focus:ring-[#FF9933] text-sm font-bold tracking-tight transition-all"
@@ -510,7 +519,7 @@ export default function IntakeFormView() {
                     <label className="text-xs font-bold text-ashoka-navy uppercase tracking-wide">Certified Legal Queries Generated by AI</label>
                     <textarea
                       rows={4}
-                      value={localForm.specific_records}
+                      value={localForm.specific_records ?? ''}
                       onChange={e => handleChange('specific_records', e.target.value)}
                       placeholder="Leave blank to let AI formulate the exact records requested."
                       className="w-full bg-[#FAF8F5] border border-slate-300 rounded-2xl p-3.5 text-ashoka-navy placeholder-slate-400 focus:outline-none focus:border-[#FF9933] focus:ring-1 focus:ring-[#FF9933] text-sm resize-none leading-relaxed transition-all"
@@ -522,7 +531,7 @@ export default function IntakeFormView() {
                       <label className="text-xs font-bold text-ashoka-navy uppercase tracking-wide">Time Period</label>
                       <input
                         type="text"
-                        value={localForm.time_period}
+                        value={localForm.time_period ?? ''}
                         onChange={e => handleChange('time_period', e.target.value)}
                         placeholder="Leave blank if unsure"
                         className="w-full bg-[#FAF8F5] border border-slate-300 rounded-xl p-3.5 text-ashoka-navy placeholder-slate-400 focus:outline-none focus:border-[#FF9933] focus:ring-1 focus:ring-[#FF9933] text-sm transition-all"
@@ -532,7 +541,7 @@ export default function IntakeFormView() {
                       <label className="text-xs font-bold text-ashoka-navy uppercase tracking-wide">Application / File Ref (If Known)</label>
                       <input
                         type="text"
-                        value={localForm.file_or_work_no}
+                        value={localForm.file_or_work_no ?? ''}
                         onChange={e => handleChange('file_or_work_no', e.target.value)}
                         placeholder="Leave blank if none"
                         className="w-full bg-[#FAF8F5] border border-slate-300 rounded-xl p-3.5 text-ashoka-navy placeholder-slate-400 focus:outline-none focus:border-[#FF9933] focus:ring-1 focus:ring-[#FF9933] text-sm transition-all"
@@ -546,7 +555,7 @@ export default function IntakeFormView() {
                     <label className="text-xs font-bold text-ashoka-navy uppercase tracking-wide">Opposing Party / Authority</label>
                     <input
                       type="text"
-                      value={localForm.target_department}
+                      value={localForm.target_department ?? ''}
                       onChange={e => handleChange('target_department', e.target.value)}
                       placeholder="e.g., Landlord Name / Company / Unsure"
                       className="w-full bg-[#FAF8F5] border border-slate-300 rounded-xl p-3.5 text-court-maroon placeholder-slate-400 focus:outline-none focus:border-[#FF9933] focus:ring-1 focus:ring-[#FF9933] text-sm font-bold tracking-tight transition-all"
@@ -557,7 +566,7 @@ export default function IntakeFormView() {
                     <label className="text-xs font-bold text-ashoka-navy uppercase tracking-wide">Statutory Relief Demanded</label>
                     <textarea
                       rows={3}
-                      value={localForm.desired_relief}
+                      value={localForm.desired_relief ?? ''}
                       onChange={e => handleChange('desired_relief', e.target.value)}
                       placeholder="Leave blank to let AI formulate standard relief based on law."
                       className="w-full bg-[#FAF8F5] border border-slate-300 rounded-2xl p-3.5 text-ashoka-navy placeholder-slate-400 focus:outline-none focus:border-[#FF9933] focus:ring-1 focus:ring-[#FF9933] text-sm resize-none leading-relaxed transition-all"
@@ -569,7 +578,7 @@ export default function IntakeFormView() {
                       <label className="text-xs font-bold text-ashoka-navy uppercase tracking-wide">Date of Incident</label>
                       <input
                         type="text"
-                        value={localForm.incident_date}
+                        value={localForm.incident_date ?? ''}
                         onChange={e => handleChange('incident_date', e.target.value)}
                         placeholder="Leave blank if ongoing"
                         className="w-full bg-[#FAF8F5] border border-slate-300 rounded-xl p-3.5 text-ashoka-navy placeholder-slate-400 focus:outline-none focus:border-[#FF9933] focus:ring-1 focus:ring-[#FF9933] text-sm transition-all"
@@ -579,7 +588,7 @@ export default function IntakeFormView() {
                       <label className="text-xs font-bold text-ashoka-navy uppercase tracking-wide">Financial Claim (₹)</label>
                       <input
                         type="text"
-                        value={localForm.financial_loss}
+                        value={localForm.financial_loss ?? ''}
                         onChange={e => handleChange('financial_loss', e.target.value)}
                         placeholder="Leave blank if not applicable"
                         className="w-full bg-[#FAF8F5] border border-slate-300 rounded-xl p-3.5 text-ashoka-navy placeholder-slate-400 focus:outline-none focus:border-[#FF9933] focus:ring-1 focus:ring-[#FF9933] text-sm transition-all"
